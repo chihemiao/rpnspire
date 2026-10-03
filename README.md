@@ -13,11 +13,21 @@ with many features such as searchable menus, autocompletion, an application fram
 
 Use the latest build from the *GitHub actions* and put it under `MyWidgets` on your nspire CX.
 
-## Build
+## Agent development workflow
 
-Building rpnspire depends on `luabundler` (install from `npm`) and `luna`.
+This fork keeps the original rpnspire application structure. `AGENTS.md` gives coding agents the target runtime, source layout, and validation boundary.
 
-    make tns
+On macOS or Linux, install Node.js, npm, Lua, a C compiler, `make`, and zlib development headers. Then run:
+
+```sh
+npm ci
+npm test
+npm run build
+```
+
+The build writes `bundle.lua` and `rpn.tns`. It downloads and builds Luna v2.1 locally in `.luna/` on first use. To test a single Lua script without bundling the full application, run `npm run build:hello`; this converts `examples/hello.lua` to `hello.tns`.
+
+The generated `.tns` needs to be opened in TI-Nspire CX CAS software or on a CX II CAS handheld for runtime validation. Compilation alone verifies the local toolchain.
 
 ## Usage
 

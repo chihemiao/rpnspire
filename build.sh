@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 ROOT="$(dirname "${BASH_SOURCE[0]}")"
+cd "$ROOT"
 
-if ! [[ -f "$ROOT/.luna/luna" ]]; then
+if ! [[ -x "$ROOT/.luna/luna" ]]; then
     echo "Cloning luna..."
-    git clone 'https://github.com/ndless-nspire/Luna.git' .luna
+    if ! [[ -d .luna ]]; then
+        git clone --depth 1 --branch v2.1 'https://github.com/ndless-nspire/Luna.git' .luna
+    fi
 
     echo "Building luna..."
-    (
-        cd .luna || exit 1
-        make
-    )
+    make -C .luna
 fi
 
-"$ROOT/.luna/luna" "bundle.lua" "$ROOT/rpn.tns"
+"$ROOT/.luna/luna" "${1:-bundle.lua}" "${2:-rpn.tns}"

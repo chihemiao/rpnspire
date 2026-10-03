@@ -1,4 +1,6 @@
 
 /.luna
+/node_modules
 bundle.lua
 rpn.tns
+hello.tns

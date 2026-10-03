@@ -1,0 +1,12 @@
+{
+  "name": "rpnspire-agent-template",
+  "private": true,
+  "scripts": {
+    "test": "make test",
+    "build": "make tns LUABUNDLER=./node_modules/.bin/luabundler",
+    "build:hello": "./build.sh examples/hello.lua hello.tns"
+  },
+  "devDependencies": {
+    "luabundler": "1.2.3"
+  }
+}

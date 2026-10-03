@@ -21,8 +21,8 @@ function table.dump(self)
    if type(self) == "table" then
       local s = '{ '
       for k, v in pairs(self) do
-         if type(k) ~= 'number' then k = '"' .. k .. '"' end
-         s = s .. '[' .. k .. '] = ' .. table.dump(v) .. ','
+         local key = type(k) == 'number' and k or '"' .. k .. '"'
+         s = s .. '[' .. key .. '] = ' .. table.dump(v) .. ','
       end
       return s .. '} '
    else
