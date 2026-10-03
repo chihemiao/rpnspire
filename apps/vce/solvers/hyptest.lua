@@ -51,7 +51,7 @@ function S.solve(I, R)
    local rel = h1 == '!=' and U.NEQ or h1
    R:step('H0: ' .. mu_s .. ' = ' .. M(mu0.val) .. ',   H1: ' .. mu_s .. ' ' .. rel .. ' ' .. M(mu0.val))
    local se = U.simp(U.par(sd.val) .. '/' .. U.ROOT .. '(' .. n.val .. ')')
-   R:step('Under H0: ' .. M(XBAR) .. ' ~ N' .. M('(' .. mu0.val .. ',' .. U.par(sd.val) .. '^2/' .. n.val .. ')')
+   R:step('Under H0: ' .. M(XBAR) .. ' ~ ' .. M('N(' .. mu0.val .. ',' .. U.par(sd.val) .. '^2/' .. n.val .. ')')
           .. ',  SD = ' .. M(se))
    R:result('SD(' .. M(XBAR) .. ')', se, { key = 'se' })
 

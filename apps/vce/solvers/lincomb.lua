@@ -50,7 +50,7 @@ function S.solve(I, R)
    if sy and not vy then vy = U.read(U.par(sy.val) .. '^2') end
 
    local comb = I.comb and U.trim(I.comb) ~= '' and I.comb or nil
-   local event, e = I.event and U.trim(I.event) ~= '' and I.event or nil, nil
+   local event = I.event and U.trim(I.event) ~= '' and I.event or nil
 
    -- Event containing X/Y defines the combination: X1+X2 > 2Y  ->  W = X1+X2-2Y > 0
    if event then
@@ -175,14 +175,13 @@ function S.solve(I, R)
       R:note('Probabilities need X and Y normal', 'warn')
       return
    end
-   local err
-   e, err = ev.parse(event, { 'w' })
+   local e, err = ev.parse(event, { 'w' })
    if not e then
       R:note(err, 'error')
       return
    end
    local lo, hi = U.bound(e.lo), U.bound(e.hi)
-   R:step('W ~ N' .. M('(' .. mean .. ',' .. var .. ')'))
+   R:step('W ~ ' .. M('N(' .. mean .. ',' .. var .. ')'))
    local expr = string.format('normCdf(%s,%s,%s,%s)', lo or U.NEGINF, hi or U.INF, mean, sd)
    local p = U.simp(expr)
    local d = ev.describe(e, 'W')

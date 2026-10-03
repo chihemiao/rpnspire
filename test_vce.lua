@@ -70,7 +70,7 @@ local VERBOSE = os.getenv('VERBOSE')
 -- Helpers ------------------------------------------------------------------------
 
 local function run(solver_id, inputs)
-   local solvers = require 'apps.vce.solvers'
+   local solvers = require 'apps.vce.registry'
    local s = solvers.get(solver_id)
    assert(s, 'unknown solver ' .. solver_id)
    local R = report.new()
@@ -138,11 +138,20 @@ function test.cas_parsing()
    Test.assert(cas.display_name('q9t') == 't' and cas.display_name('q7x') == 'X')
 end
 
+function test.expand_periodic()
+   local U = require 'apps.vce.solvers.util'
+   local l = U.expand_solutions({ '@n1*' .. sym.pi, '2' }, 0, 10)
+   Test.assert(#l == 5, 'count ' .. #l)
+   near(cas.n(l[2]), 2, 1e-9, 'sorted')
+   near(cas.n(l[3]), math.pi, 1e-9, 'pi')
+   near(cas.n(l[5]), 3 * math.pi, 1e-9, '3pi')
+end
+
 function test.fmt_round()
-   Test.assert(fmt.round(0.78870045) == '0.7887')
-   Test.assert(fmt.round(2.5) == '2.5')
+   Test.assert(fmt.round(0.78870045, 4) == '0.7887')
+   Test.assert(fmt.round(2.5, 4) == '2.5')
    Test.assert(fmt.round(-0.00001, 4) == sym.NEGATE .. '1*10^(' .. sym.NEGATE .. '5)')
-   Test.assert(fmt.round_expr('0.123456*q9t^2') == '0.1235*q9t^2')
+   Test.assert(fmt.round_expr('0.123456*q9t^2', 4) == '0.1235*q9t^2')
    Test.assert(fmt.round_expr('q9t2+12') == 'q9t2+12')
 end
 
@@ -157,6 +166,36 @@ function test.event_parse()
    e = ev.parse('P(X=2)')
    Test.assert(e.eq == '2')
    Test.assert(select(2, ev.int_range(2, false, 5, false)) == 4)
+end
+
+-- Pretty printer -------------------------------------------------------------------
+
+function test.mathbox_layout()
+   local mb = require 'ui.mathbox'
+   mb.rename = cas.display_name
+   local N = sym.NEGATE
+   local exprs = {
+      '3/8*q9x^2', sym.ROOT .. '(2)/2', 'q9x=' .. N .. '2 or q9x=2',
+      'integral(3/8*q9x^2,q9x,0,q9m)=1/2', 'piecewise(3/8*q9x^2,0' .. sym.LEQ .. 'q9x' .. sym.LEQ .. '2,0)',
+      'normCdf(' .. N .. sym.INFTY .. ',55,50,4)', '{0.1,0.2}', '[[1,2][3,4]]', 'abs(q9t-3)',
+      sym.EULER .. '^(' .. N .. 'q9t/2)', '1.5' .. sym.EE .. N .. '7', 'derivative(q9t^3,q9t)', 'bar(X)',
+      '(q9x+1)^2', '2*(' .. N .. '3)', 'a-(b-c)', 'log(8,2)', 'root(8,3)', 'nCr(5,2)*0.3^2',
+   }
+   for _, e in ipairs(exprs) do
+      local b = mb.layout(e, 10)
+      Test.assert(b and b.w > 0 and b.h > 0, 'layout ' .. e)
+      -- drawing must not fail
+      local calls = 0
+      local g = setmetatable({}, { __index = function(_, k)
+         return function() calls = calls + 1 return 6 end
+      end })
+      mb.draw(b, g, 0, 0)
+      Test.assert(calls > 0, 'draw ' .. e)
+   end
+   -- fraction is taller than a single line
+   Test.assert(mb.layout('1/2', 10).h > mb.layout('12', 10).h, 'fraction height')
+   -- unparsable input falls back to text
+   Test.assert(mb.layout('2+*', 10).w > 0, 'fallback')
 end
 
 -- Normal ----------------------------------------------------------------------------
@@ -183,6 +222,12 @@ function test.normal_inverse()
    near(rnum(R, 'k'), 55.126206, 1e-4, 'k right')
    R = run('normal', { mu = '50', sd = '4', event = '50-c<X<50+c', p = '0.95' })
    near(rnum(R, 'k'), 7.839856, 1e-3, 'c symmetric')
+end
+
+function test.normal_area_to_x()
+   local R = run('normal', { mu = '50', sd = '4', q = '0.99' })
+   no_errors(R)
+   near(rnum(R, 'q'), 50 + 4 * 2.326347874, 1e-4, 'x for area 0.99')
 end
 
 function test.normal_find_sigma_mu()
@@ -426,6 +471,183 @@ function test.kin_v_of_x()
    no_errors(R)
    near(rnum(R, 'q_x'), (math.exp(2) - 1) / 2, 1e-4, 'x(1)')
    near(rnum(R, 'q_v'), math.exp(2), 1e-3, 'v(1)')
+end
+
+-- Self-test cases (same as on the calculator) ------------------------------------------
+
+function test.selftest_cases()
+   local selftest = require 'apps.vce.selftest'
+   for _, c in ipairs(selftest.cases) do
+      local ok, got, _, err = selftest.run_case(c)
+      Test.assert(ok, string.format('%s %s: got %s want %s %s', c[1], c[3], tostring(got), tostring(c[4]), err or ''))
+   end
+end
+
+-- History persistence --------------------------------------------------------------------
+
+function test.history_save_restore()
+   local History = require 'apps.vce.history'
+   local h = History.new()
+   h:add('normal', { mu = '50', sd = '4' }, 'Q1a')
+   h:add('suvat', { u = '0' })
+   local h2 = History.load(h:save())
+   Test.assert(#h2.items == 2, 'items restored')
+   Test.assert(h2.items[1].tag == 'Q1a' and h2.items[1].inputs.mu == '50', 'content restored')
+   Test.assert(h2.current == 2, 'current restored')
+   local p = h2:add('pdf')
+   Test.assert(p.id == 3, 'ids continue')
+   Test.assert(#History.load(nil).items == 0, 'nil state')
+   Test.assert(#History.load({ items = { { solver = 5 } } }).items == 0, 'bad state ignored')
+end
+
+-- UI smoke test: drive the app with key events and paint every screen ---------------------
+
+local function paint_all()
+   local ui = require 'ui'
+   local calls = 0
+   local g = setmetatable({}, { __index = function(_, k)
+      if k == 'getStringWidth' then return function(_, s) return 6 * #(s or '') end end
+      if k == 'getStringHeight' then return function() return 12 end end
+      return function() calls = calls + 1 end
+   end })
+   ui.paint(ui.GC(g, 0, 0))
+   return calls
+end
+
+function test.ui_smoke()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   local solvers = require 'apps.vce.registry'
+   local function key(name, ...) ui.on_event(name, ...) end
+   local function type_text(s)
+      for ch in s:gmatch('[\1-\127\194-\244][\128-\191]*') do key('char', ch) end
+   end
+
+   -- error dialogs push modals; fail the test instead
+   local dlg_error = require 'dialog.error'
+   local orig = dlg_error.display
+   local errors = {}
+   dlg_error.display = function(title, msg)
+      if not tostring(msg):find('^Select') then
+         table.insert(errors, tostring(title) .. ': ' .. tostring(msg))
+      end
+      return orig(title, msg)
+   end
+
+   app.open(nil)
+   Test.assert(app.screen == 'home', 'starts at home')
+   Test.assert(paint_all() > 0, 'home paints')
+
+   for i, s in ipairs(solvers.list) do
+      key('char', tostring(i % 10))
+      Test.assert(app.screen == 'problem', 'opened ' .. s.id)
+      -- fill the solver example through the UI
+      for _, f in ipairs(s.fields) do
+         local v = s.example and s.example[f.id]
+         local row = app.sheet:selected()
+         if row and row.id == f.id then
+            if f.kind == 'choice' then
+               for _ = 1, 10 do
+                  if row.options[row.index][1] == (v or row.options[1][1]) then break end
+                  key('right')
+                  row = app.sheet:selected()
+               end
+               key('down')
+            else
+               if v then type_text(v) end
+               key('enter_key')
+            end
+         end
+      end
+      local R = app.last_report
+      Test.assert(R and #R.results > 0, s.id .. ' example has results')
+      for _, n in ipairs(R.notes) do
+         Test.assert(n.kind ~= 'error', s.id .. ' example error: ' .. report.plain(n.text))
+      end
+      paint_all()
+      -- walk through all rows and toggle results
+      for _ = 1, 60 do
+         local row = app.sheet:selected()
+         if row and row.kind == 'result' then key('enter_key') key('right') key('left') end
+         key('down')
+      end
+      paint_all()
+      key('escape')
+      Test.assert(app.screen == 'home', 'back home from ' .. s.id)
+   end
+
+   -- history, filter, help, self-test
+   key('char', 'h')
+   Test.assert(app.screen == 'history', 'history screen')
+   type_text('nor')
+   paint_all()
+   key('escape') key('escape')
+   app.show_help() paint_all()
+   app.show_selftest() paint_all()
+   key('escape')
+
+   -- every toolpalette entry runs
+   local menu = app.menu()
+   app.show_problem(1)
+   for _, cat in ipairs(menu) do
+      for k = 2, #cat do
+         local title = cat[k][1]
+         if not title:find('Delete') then
+            cat[k][2]()
+            -- close dialogs/menus opened by the action
+            while #ui.modal > 1 do ui.pop_modal() end
+            if ui.get_focus() ~= app.sheet then ui.set_focus(app.sheet) end
+            paint_all()
+         end
+      end
+   end
+
+   -- save/restore round trip
+   local state = app.save_state()
+   app.restore_state(state)
+   Test.assert(#app.history.items == #solvers.list + 2 or #app.history.items > 0, 'history kept')
+   dlg_error.display = orig
+   app.set_dp(4)
+   app.set_font('normal')
+   Test.assert(#errors == 0, 'errors: ' .. table.concat(errors, '; '))
+end
+
+function test.ui_dynamic_fields()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   app.open(nil)
+   app.new_problem('pdf')
+   local function type_text(str)
+      for ch in str:gmatch('[\1-\127\194-\244][\128-\191]*') do ui.on_event('char', ch) end
+   end
+   Test.assert(app.sheet:selected().id == 'f1', 'starts on f(x)')
+   type_text('x/2')
+   ui.on_event('down')
+   Test.assert(app.sheet:selected().id == 'a1', 'down after typing f(x) goes to "from"')
+   type_text('0') ui.on_event('tab')
+   type_text('2') ui.on_event('enter_key')
+   Test.assert(app.sheet:selected().id == 'f2', 'enter moves to the 2nd piece')
+   -- results toggle by click
+   local R = app.last_report
+   near(R:num('mean'), 4 / 3, 1e-6, 'mean of x/2 on [0,2]')
+   local idx
+   for k, r in ipairs(app.sheet.rows) do
+      if r.kind == 'result' and r.key == 'res:mean' then idx = k end
+   end
+   app.sheet:select(idx)
+   ui.on_event('enter_key')
+   Test.assert(app.sheet:selected().mode == 'approx', 'enter toggles to decimal')
+   ui.on_event('enter_key')
+   Test.assert(app.sheet:selected().mode == 'exact', 'enter toggles back')
+   -- tag via t on a result row, then the history filter finds it
+   local p = app.current()
+   p.tag = 'Q7c'
+   app.show_history()
+   app.filter = 'q7'
+   app.show_history()
+   Test.assert(app.sheet.rows[1].kind == 'link' and app.sheet.rows[1].title:find('Q7c'), 'history filter by tag')
+   app.filter = ''
+   ui.on_event('escape')
 end
 
 Test.run(test)

@@ -19,6 +19,7 @@ cas.backend = nil
 cas.log = nil
 
 local function backend(expr)
+   -- luacheck: ignore math
    local f = cas.backend or math.evalStr
    return f(expr)
 end

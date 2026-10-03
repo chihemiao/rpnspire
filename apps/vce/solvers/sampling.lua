@@ -140,7 +140,7 @@ function S.solve(I, R)
          return
       end
       local l, h = U.bound(e.lo), U.bound(e.hi)
-      R:step(M(XBAR) .. ' ~ N' .. M('(' .. mu.val .. ',' .. U.par(sd.val) .. '^2/' .. n.val .. ')'))
+      R:step(M(XBAR) .. ' ~ ' .. M('N(' .. mu.val .. ',' .. U.par(sd.val) .. '^2/' .. n.val .. ')'))
       local expr = string.format('normCdf(%s,%s,%s,%s)', l or U.NEGINF, h or U.INF, mu.val, se)
       local p = U.simp(expr)
       local d = ev.describe(e, '`bar(X)`')

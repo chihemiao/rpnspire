@@ -146,6 +146,40 @@ function U.trim(s)
    return (s or ''):match('^%s*(.-)%s*$')
 end
 
+-- Numeric solutions within [lo, hi] (Lua numbers, optional), sorted.
+-- Periodic CAS solutions containing arbitrary integers (@n1) are expanded
+-- for small integer values.
+function U.expand_solutions(sols, lo, hi, limit)
+   local out = {}
+   local function add(e)
+      local v = cas.n(e)
+      if v and (not lo or v >= lo - 1e-9) and (not hi or v <= hi + 1e-9) then
+         table.insert(out, { e = e, v = v })
+      end
+   end
+   for _, s in ipairs(sols or {}) do
+      if s:find('@n') then
+         for k = -3, 24 do
+            local kk = k < 0 and (U.NEG .. tostring(-k)) or tostring(k)
+            add(cas.eval((s:gsub('@n%d+', '(' .. kk .. ')'))) or '')
+         end
+      else
+         add(s)
+      end
+   end
+   table.sort(out, function(a, b) return a.v < b.v end)
+   local res = {}
+   for _, o in ipairs(out) do
+      if #res == 0 or math.abs(res[#res].v - o.v) > 1e-9 then
+         table.insert(res, { e = o.e, v = o.v })
+      end
+      if limit and #res >= limit then break end
+   end
+   local list = {}
+   for _, o in ipairs(res) do table.insert(list, o.e) end
+   return list
+end
+
 -- Parse a CAS list input like '{1,2,3}' or '1,2,3'
 function U.read_list(text, map)
    local src = cas.input(text, map)

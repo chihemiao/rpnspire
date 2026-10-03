@@ -379,12 +379,7 @@ function S.solve(I, R)
          end
          local function times_where(e)
             local sols = cas.solve(e .. '=' .. value, T, T .. U.GEQ .. tmin)
-            local out = {}
-            for _, s in ipairs(sols or {}) do
-               local n = cas.n(s)
-               if n and n >= (cas.n(tmin) or 0) - 1e-9 then table.insert(out, s) end
-            end
-            return out
+            return U.expand_solutions(sols, cas.n(tmin) or 0, nil, 4)
          end
 
          if var == 't' then
@@ -496,7 +491,7 @@ function S.solve(I, R)
          -- turning points inside (t1, t2)
          local zs = cas.solve(K.vt .. '=0', T, T .. '>' .. t1.val .. ' and ' .. T .. '<' .. t2.val)
          local turns = {}
-         for _, z in ipairs(zs or {}) do
+         for _, z in ipairs(U.expand_solutions(zs, t1.num, t2.num, 20)) do
             local n = cas.n(z)
             if n and n > (t1.num or -math.huge) + 1e-12 and n < (t2.num or math.huge) - 1e-12 then
                table.insert(turns, z)

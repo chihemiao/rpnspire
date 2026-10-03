@@ -50,7 +50,7 @@ function S.solve(I, R)
 
    -- Unknowns --------------------------------------------------------------
    local unknowns = U.unknowns(ps_src)
-   local ps = praw
+   local ps
    if #unknowns > 0 then
       local sum_eq = join(praw) .. '=1'
       R:step(U.SUM .. ' P(X=x) = 1: ' .. M(sum_eq))

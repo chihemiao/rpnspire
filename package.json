@@ -4,7 +4,8 @@
   "scripts": {
     "test": "make test",
     "build": "make tns LUABUNDLER=./node_modules/.bin/luabundler",
-    "build:hello": "./build.sh examples/hello.lua hello.tns"
+    "build:hello": "./build.sh examples/hello.lua hello.tns",
+    "build:vce": "make vce LUABUNDLER=./node_modules/.bin/luabundler"
   },
   "devDependencies": {
     "luabundler": "1.2.3"

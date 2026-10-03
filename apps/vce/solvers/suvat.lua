@@ -116,13 +116,9 @@ function S.solve(I, R)
 
    -- Unknown pair (p, q): solve p from the formula without q
    local p, q = unknown[1], unknown[2]
-   if q then
-      -- prefer solving the variable whose formula is linear first
-      local fp = formula_lacking(q)
-      if not fp.lin[p] then
-         p, q = q, p
-         fp = formula_lacking(q)
-      end
+   -- prefer solving first the variable that appears linearly
+   if q and not formula_lacking(q).lin[p] then
+      p, q = q, p
    end
 
    local fp = q and formula_lacking(q) or nil

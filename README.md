@@ -9,6 +9,12 @@ An RPN interface for the TI Nspire CX
 As I really liked the rpn application for the TI-89 but could not find a usable RPN implementation for the TI nSpire, I've created rpnSpire, a powerful RPN implementation
 with many features such as searchable menus, autocompletion, an application framework in lua, a matrix editor, and many more.
 
+## VCE Specialist Maths toolkit
+
+This fork adds a solver toolkit for VCE Specialist Mathematics on the TI-Nspire CX II CAS: normal, binomial, discrete and continuous (PDF) random variables, linear combinations, confidence intervals, hypothesis tests with Type I/II errors, SUVAT, and variable-acceleration kinematics. You type in the known values and it shows exact results (enter or a click switches to decimals), 2D maths like the CAS screen, and VCE-style working. History and tags are kept with the document.
+
+It is available as the standalone `vce.tns` (`npm run build:vce`) and inside `rpn.tns` under <kbd>.</kbd><kbd>a</kbd> › *VCE Specialist toolkit*. See [doc/vce.md](doc/vce.md).
+
 ## Install
 
 Use the latest build from the *GitHub actions* and put it under `MyWidgets` on your nspire CX.
@@ -25,7 +31,7 @@ npm test
 npm run build
 ```
 
-The build writes `bundle.lua` and `rpn.tns`. It downloads and builds Luna v2.1 locally in `.luna/` on first use. To test a single Lua script without bundling the full application, run `npm run build:hello`; this converts `examples/hello.lua` to `hello.tns`.
+The build writes `bundle.lua` and `rpn.tns`; `npm run build:vce` writes `vce_bundle.lua` and `vce.tns`. It downloads and builds Luna v2.1 locally in `.luna/` on first use. To test a single Lua script without bundling the full application, run `npm run build:hello`; this converts `examples/hello.lua` to `hello.tns`.
 
 The generated `.tns` needs to be opened in TI-Nspire CX CAS software or on a CX II CAS handheld for runtime validation. Compilation alone verifies the local toolchain.
 

@@ -63,10 +63,6 @@ end
 -- Default random variable names (case-insensitive)
 ev.default_rv = { 'x', 'z', 'y', 'w', 't', 's', 'xbar', 'u', 'v' }
 
-local function is_ident(s)
-   return s:match('^%a[%w_]*$') ~= nil
-end
-
 local function find_rv(parts, rvnames)
    rvnames = rvnames or ev.default_rv
    for _, name in ipairs(rvnames) do

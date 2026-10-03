@@ -1,0 +1,195 @@
+-- Desktop screenshot harness: runs the VCE app with the numeric mock CAS and
+-- renders screens to SVG (approximate TI fonts). Usage:
+--   lua tools/screens.lua <outdir>
+package.path = './?.lua;' .. package.path
+
+function _G.class(base)
+   local classdef = {}
+   setmetatable(classdef, {
+      __index = base,
+      __call = function(_, ...)
+         local inst = { class = classdef, super = base or nil }
+         setmetatable(inst, { __index = classdef })
+         if inst.init then inst:init(...) end
+         return inst
+      end
+   })
+   return classdef
+end
+function string.usub(...) return string.sub(...) end
+if not unpack then _G.unpack = table.unpack end
+
+local W, H = 318, 212
+
+local function char_w(size, ch)
+   -- rough sans-serif metrics
+   local k = 0.56
+   if ch:match('[iIl%.,:;!|\']') then k = 0.28
+   elseif ch:match('[mwMW]') then k = 0.85
+   elseif ch:match('[%u]') then k = 0.66
+   elseif ch:match('[ftrj%(%)%[%]]') then k = 0.36
+   elseif ch == ' ' then k = 0.3 end
+   return size * k * 1.33
+end
+
+local function str_w(s, size)
+   local w = 0
+   for ch in s:gmatch('[\1-\127\194-\244][\128-\191]*') do w = w + char_w(size, ch) end
+   return math.floor(w + 0.5)
+end
+
+local svg = {}
+local function esc(s)
+   s = s:gsub('&', '&amp;'):gsub('<', '&lt;'):gsub('>', '&gt;')
+   -- TI private-use glyphs
+   s = s:gsub('\239\128\191', 'e'):gsub('\239\128\128', 'E')
+   return s
+end
+
+local function color(c)
+   return string.format('#%06x', c or 0)
+end
+
+local G = {}
+G.__index = G
+local function newgc()
+   return setmetatable({ size = 11, style = 'r', col = 0, clip = nil }, G)
+end
+function G:setFont(_, style, size) self.size, self.style = size, style end
+function G:getStringWidth(s) return str_w(s or '', self.size) end
+function G:getStringHeight() return math.floor(self.size * 1.45 + 0.5) end
+function G:setColorRGB(c) self.col = c end
+function G:clipRect(op, x, y, w, h)
+   if op == 'reset' then self.clip = nil else self.clip = { x, y, w, h } end
+end
+local clipn = 0
+function G:cl()
+   if not self.clip then return '' end
+   clipn = clipn + 1
+   local id = 'c' .. clipn
+   table.insert(svg, string.format('<clipPath id="%s"><rect x="%d" y="%d" width="%d" height="%d"/></clipPath>', id,
+      self.clip[1], self.clip[2], self.clip[3], self.clip[4]))
+   return string.format(' clip-path="url(#%s)"', id)
+end
+function G:fillRect(x, y, w, h)
+   table.insert(svg, string.format('<rect x="%d" y="%d" width="%d" height="%d" fill="%s"%s/>', x, y, w, h, color(self.col), self:cl()))
+end
+function G:drawRect(x, y, w, h)
+   table.insert(svg, string.format('<rect x="%.1f" y="%.1f" width="%d" height="%d" fill="none" stroke="%s" stroke-width="1"%s/>', x + 0.5, y + 0.5, w, h, color(self.col), self:cl()))
+end
+function G:drawLine(x1, y1, x2, y2)
+   table.insert(svg, string.format('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1"%s/>', x1 + 0.5, y1 + 0.5, x2 + 0.5, y2 + 0.5, color(self.col), self:cl()))
+end
+function G:drawArc(x, y, w, h, a0, da)
+   local cx, cy, rx, ry = x + w / 2, y + h / 2, w / 2, h / 2
+   local function pt(a)
+      local r = math.rad(a)
+      return cx + rx * math.cos(r), cy - ry * math.sin(r)
+   end
+   local x1, y1 = pt(a0)
+   local x2, y2 = pt(a0 + da)
+   table.insert(svg, string.format('<path d="M %.1f %.1f A %.1f %.1f 0 %d 0 %.1f %.1f" fill="none" stroke="%s"%s/>', x1, y1, rx, ry, da > 180 and 1 or 0, x2, y2, color(self.col), self:cl()))
+end
+function G:drawString(s, x, y)
+   if s == '' then return end
+   local w = str_w(s, self.size)
+   table.insert(svg, string.format('<text xml:space="preserve" x="%d" y="%.1f" font-family="DejaVu Sans, Arial, sans-serif" font-size="%.1f" font-weight="%s" font-style="%s" fill="%s" textLength="%d" lengthAdjust="spacingAndGlyphs"%s>%s</text>',
+      x, y + self.size * 1.12, self.size * 1.33, self.style:find('b') and 'bold' or 'normal', self.style:find('i') and 'italic' or 'normal', color(self.col), w, self:cl(), esc(s)))
+end
+
+local measure_gc = newgc()
+_G.platform = {
+   apiLevel = '2.4',
+   withGC = function(fn) return fn(measure_gc) end,
+   window = { width = function() return W end, height = function() return H end, invalidate = function() end },
+}
+_G.on = {}
+_G.clipboard = { addText = function() end, getText = function() return '' end }
+_G.var = { list = function() return { 'f11' } end, store = function() end }
+_G.toolpalette = { register = function() end, enableCopy = function() end, enableCut = function() end, enablePaste = function() end }
+
+require 'tableext'
+require 'stringext'
+local mock = require 'testcas'
+mock.functions['f11'] = { params = { 'x' }, body = '3*x^2-2' }
+math.evalStr = mock.evalStr
+local cas = require 'apps.vce.cas'
+cas.backend = mock.evalStr
+
+local ui = require 'ui'
+local app = require 'apps.vce.app'
+
+local outdir = arg[1] or '.'
+
+local function shot(name)
+   svg = {}
+   clipn = 0
+   local g = newgc()
+   ui.paint(ui.GC(g, 0, 0))
+   local f = io.open(outdir .. '/' .. name .. '.svg', 'w')
+   f:write(string.format('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d"><rect width="%d" height="%d" fill="white"/>', W, H, W, H, W, H))
+   f:write(table.concat(svg, '\n'))
+   f:write('</svg>')
+   f:close()
+end
+
+local function key(name, ...) ui.on_event(name, ...) end
+local function type_text(s)
+   for ch in s:gmatch('[\1-\127\194-\244][\128-\191]*') do key('char', ch) end
+end
+
+app.open(nil)
+shot('01_home')
+
+-- Normal: fill fields
+key('char', '1')
+type_text('50') key('enter_key')
+type_text('4') key('enter_key')
+key('enter_key')
+type_text('45<X<55') key('enter_key')
+shot('02_normal')
+for _ = 1, 3 do key('down') end
+shot('03_normal_results')
+key('enter_key')
+shot('04_normal_toggled')
+
+-- PDF
+key('escape')
+key('char', '5')
+type_text('k*x*(2-x)') key('enter_key')
+type_text('0') key('enter_key')
+type_text('2') key('enter_key')
+shot('05_pdf')
+for _ = 1, 8 do key('down') end
+shot('06_pdf_results')
+
+-- Kinematics
+key('escape')
+key('char', '0')
+key('right') key('down')
+type_text('-v/2') key('enter_key')
+type_text('0') key('enter_key')
+type_text('0') key('enter_key')
+type_text('10') key('enter_key')
+key('down')
+type_text('v=5') key('enter_key')
+shot('07_kinematics')
+for _ = 1, 10 do key('down') end
+shot('08_kinematics_work')
+
+-- SUVAT
+key('escape')
+key('char', '9')
+type_text('10') key('enter_key')
+type_text('20') key('enter_key')
+key('enter_key')
+type_text('-9.8') key('enter_key')
+shot('09_suvat')
+
+-- history
+key('escape')
+key('char', 'h')
+shot('10_history')
+key('escape')
+key('escape')
+print('ok')

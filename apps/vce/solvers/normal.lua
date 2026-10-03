@@ -18,6 +18,7 @@ local S = {
       { id = 'var', label = sigma_s .. U.SQ, hint = 'variance (instead of ' .. sigma_s .. ')' },
       { id = 'event', label = 'Event', hint = '45<X<55   X>k   X>60|X>50' },
       { id = 'p', label = 'Pr', hint = 'probability of event (to find k, ' .. mu_s .. ', ' .. sigma_s .. ')' },
+      { id = 'q', label = 'P(X<x)=', hint = 'area, e.g. 0.99 -> x' },
    },
    example = { mu = '50', sd = '4', event = '45<X<55' },
 }
@@ -40,7 +41,7 @@ end
 
 local function dist_text(rv, mu, sd, var)
    local v = var and var.val or (U.par(sd.val) .. '^2')
-   return rv .. ' ~ N' .. M('(' .. mu.val .. ',' .. v .. ')')
+   return rv .. ' ~ ' .. M('N(' .. mu.val .. ',' .. v .. ')')
 end
 
 function S.solve(I, R)
@@ -65,6 +66,21 @@ function S.solve(I, R)
       mu = { val = '0', num = 0 }
       sd = { val = '1', num = 1 }
       R:note('No ' .. mu_s .. ', ' .. sigma_s .. ': using Z ~ N(0, 1)')
+   end
+
+   -- area to the left -> x value
+   if I.q then
+      if mu and sd then
+         local q = U.read(I.q)
+         local expr = string.format('invNorm(%s,%s,%s)', q.val, mu.val, sd.val)
+         local xv = U.simp(expr)
+         R:section('Area ' .. U.IMPL .. ' x')
+         R:step('P(X < x) = ' .. M(q.val) .. ' ' .. U.IMPL .. ' x = ' .. M(expr) .. ' ' .. U.eq(xv))
+         R:result('x: P(X<x)=' .. U.txt(q.val), xv, { key = 'q' })
+      else
+         R:note('Area ' .. U.IMPL .. ' x needs ' .. mu_s .. ' and ' .. sigma_s, 'warn')
+      end
+      if not event then return end
    end
 
    if not event then
