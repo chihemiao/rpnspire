@@ -1,36 +1,31 @@
 name: test
 on: [push, workflow_dispatch]
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-    - uses: leafo/gh-actions-lua@v9
-    - name: test
-      run: |
-        make test
-
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: leafo/gh-actions-lua@v9
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-
-    - name: build tns
-      run: |
-        npm ci
-        npm run build
-        npm run build:hello
-    - name: Archive TNS documents
-      uses: actions/upload-artifact@v4
-      with:
-        name: tns-documents
-        path: |
-          rpn.tns
-          hello.tns
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install Lua and zlib headers
+        run: sudo apt-get update && sudo apt-get install -y lua5.4 zlib1g-dev
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Test Lua code
+        run: make test LUA=lua5.4
+      - name: Build TNS documents
+        run: |
+          npm run build
+          npm run build:hello
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tns-documents
+          path: |
+            rpn.tns
+            hello.tns
