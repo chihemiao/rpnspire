@@ -609,12 +609,14 @@ function test.ui_smoke()
    dlg_error.display = orig
    app.set_dp(4)
    app.set_font('normal')
+   app.settings.mode = 'exact'
    Test.assert(#errors == 0, 'errors: ' .. table.concat(errors, '; '))
 end
 
 function test.ui_dynamic_fields()
    local ui = require 'ui'
    local app = require 'apps.vce.app'
+   app.settings.mode = 'exact'
    app.open(nil)
    app.new_problem('pdf')
    local function type_text(str)
@@ -635,6 +637,8 @@ function test.ui_dynamic_fields()
       if r.kind == 'result' and r.key == 'res:mean' then idx = k end
    end
    app.sheet:select(idx)
+   local before = app.sheet:selected().mode
+   Test.assert(before == 'exact', 'results start exact')
    ui.on_event('enter_key')
    Test.assert(app.sheet:selected().mode == 'approx', 'enter toggles to decimal')
    ui.on_event('enter_key')
