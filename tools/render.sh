@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Render tools/screens.lua output to PNG contact sheets (needs Chromium)
+# Render tools/screens.lua output to PNG screens (needs Chromium)
+# Usage: tools/render.sh <outdir> [en|bi]
 set -euo pipefail
 OUT="${1:-shots}"
 mkdir -p "$OUT"
-lua tools/screens.lua "$OUT"
+lua tools/screens.lua "$OUT" "${2:-en}"
 CHROME="${CHROME:-$(ls /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1)}"
 cd "$OUT"
 i=0

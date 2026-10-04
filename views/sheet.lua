@@ -273,7 +273,44 @@ end
 
 -- Layout ---------------------------------------------------------------------------
 
-local function seg_lines(gc, segs, size, width, color)
+-- True for CJK characters (lines may break between them)
+local function is_cjk(ch)
+   local b = ch:byte(1)
+   if not b or b < 227 then return false end
+   if b <= 233 then return true end -- U+3000..U+9FFF
+   if b == 239 then
+      local b2 = ch:byte(2)
+      return b2 == 188 or b2 == 189 -- full width forms U+FF00..U+FF7F
+   end
+   return false
+end
+
+-- Split a word into break units: runs of non-CJK characters and single
+-- CJK characters (trailing spaces stay on the last unit)
+local function break_units(word)
+   if not word:find('[\227-\233\239]') then return { word } end
+   local units, run = {}, ''
+   for ch in word:gmatch('[\1-\127\194-\244][\128-\191]*') do
+      if is_cjk(ch) then
+         if run ~= '' and not run:match('^%s+$') then
+            table.insert(units, run)
+            run = ''
+         end
+         table.insert(units, run .. ch)
+         run = ''
+      else
+         if ch:match('^%s$') and #units > 0 and run == '' then
+            units[#units] = units[#units] .. ch
+         else
+            run = run .. ch
+         end
+      end
+   end
+   if run ~= '' then table.insert(units, run) end
+   return units
+end
+
+local function seg_lines(gc, segs, size, width, color, style)
    -- Flow segments into lines of boxes
    local lines = {}
    local cur, cur_w = {}, 0
@@ -295,11 +332,20 @@ local function seg_lines(gc, segs, size, width, color)
       if s.m then
          add(mb.layout(s.m, size, gc))
       else
-         -- split into words keeping spaces attached
-         for word in s.t:gmatch('%s*[^%s]+%s*') do
-            add(mb.text(word, size, gc))
+         -- '\n' forces a line break; words keep their spaces attached
+         local first = true
+         for line in (s.t .. '\n'):gmatch('(.-)\n') do
+            if not first then
+               flush()
+            end
+            first = false
+            for word in line:gmatch('%s*[^%s]+%s*') do
+               for _, unit in ipairs(break_units(word)) do
+                  add(mb.text(unit, size, gc, style))
+               end
+            end
+            if line:match('^%s+$') then add(mb.text(line, size, gc)) end
          end
-         if s.t:match('^%s+$') then add(mb.text(s.t, size, gc)) end
       end
    end
    flush()
@@ -395,9 +441,16 @@ function ui.sheet:layout_row(gc, r, W)
       local vb = mb.layout(val, S, gc)
       local eq = mb.text(r.mode == 'approx' and (' ' .. sym.APPROX .. ' ') or ' = ', S, gc)
       L.label, L.value, L.eq = label, vb, eq
-      if label.w + eq.w + vb.w + 2 * PAD <= W then
+      -- bilingual term caption (e.g. 'variance 方差'), small and grey
+      L.term = r.term and mb.text(r.term, mb.snap(max(7, S - 3)), gc) or nil
+      local tw = L.term and (L.term.w + 6) or 0
+      if label.w + eq.w + vb.w + tw + 2 * PAD <= W then
          L.inline = true
+         L.term_inline = true
          L.h = max(label.h, vb.h) + 2 * PAD
+      elseif label.w + eq.w + vb.w + 2 * PAD <= W then
+         L.inline = true
+         L.h = max(label.h, vb.h) + 2 * PAD + (L.term and L.term.h or 0)
       else
          L.inline = false
          L.h = label.h + vb.h + 3 * PAD
@@ -411,8 +464,8 @@ function ui.sheet:layout_row(gc, r, W)
       L.content = stack(seg_lines(gc, report.segments(r.text or ''), k == 'note' and small or S, W - 2 * PAD), 1)
       L.h = L.content.h + 2 * PAD
    elseif k == 'link' then
-      L.title = mb.text(r.title or '', S, gc, 'b')
-      L.desc = r.desc and stack(seg_lines(gc, report.segments(r.desc), small, W - 30), 0)
+      L.title = stack(seg_lines(gc, { { t = r.title or '' } }, S, W - 26, nil, 'b'), 0)
+      L.desc = r.desc and stack(seg_lines(gc, report.segments(r.desc), small, W - 26), 0)
       L.key = r.key and mb.text(r.key, small, gc, 'b')
       L.h = L.title.h + (L.desc and L.desc.h or 0) + 2 * PAD
    elseif k == 'math' then
@@ -558,9 +611,21 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
       end
    elseif k == 'result' then
       local lx = x + PAD
+      if L.term then
+         set_color(g, C.hint)
+         local ty
+         if L.term_inline then
+            ty = y + floor((L.h - L.term.h) / 2)
+         elseif L.inline then
+            ty = y + L.h - PAD - L.term.h
+         else
+            ty = y + PAD
+         end
+         mb.draw(L.term, g, x + W - PAD - L.term.w, ty)
+      end
       if L.inline then
          local ly = y + PAD
-         local h = L.h - 2 * PAD
+         local h = L.h - 2 * PAD - ((L.term and not L.term_inline) and L.term.h or 0)
          set_color(g, C.label)
          draw_stack(L.label, g, lx, ly + floor((h - L.label.h) / 2))
          set_color(g, r.mode == 'approx' and C.approx or C.text)
@@ -599,12 +664,12 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
       local tx = x + PAD
       if L.key then
          set_color(g, C.link_key)
-         g:drawRect(x + PAD, y + PAD, 14, L.title.h - 1)
+         g:drawRect(x + PAD, y + PAD, 14, L.title.lines[1].h - 1)
          mb.draw(L.key, g, x + PAD + floor((15 - L.key.w) / 2), y + PAD)
          tx = x + PAD + 20
       end
       set_color(g, C.text)
-      mb.draw(L.title, g, tx, y + PAD)
+      draw_stack(L.title, g, tx, y + PAD)
       if L.desc then
          set_color(g, C.info)
          draw_stack(L.desc, g, tx, y + PAD + L.title.h)

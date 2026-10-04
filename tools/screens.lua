@@ -22,7 +22,11 @@ if not unpack then _G.unpack = table.unpack end
 local W, H = 318, 212
 
 local function char_w(size, ch)
-   -- rough sans-serif metrics
+   -- rough sans-serif metrics (CJK glyphs are full width)
+   local b = ch:byte(1)
+   if b >= 227 and b <= 233 or (b == 239 and (ch:byte(2) == 188 or ch:byte(2) == 189)) then
+      return size * 1.0 * 1.33
+   end
    local k = 0.56
    if ch:match('[iIl%.,:;!|\']') then k = 0.28
    elseif ch:match('[mwMW]') then k = 0.85
@@ -93,7 +97,7 @@ end
 function G:drawString(s, x, y)
    if s == '' then return end
    local w = str_w(s, self.size)
-   table.insert(svg, string.format('<text xml:space="preserve" x="%d" y="%.1f" font-family="DejaVu Sans, Arial, sans-serif" font-size="%.1f" font-weight="%s" font-style="%s" fill="%s" textLength="%d" lengthAdjust="spacingAndGlyphs"%s>%s</text>',
+   table.insert(svg, string.format('<text xml:space="preserve" x="%d" y="%.1f" font-family="DejaVu Sans, Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif" font-size="%.1f" font-weight="%s" font-style="%s" fill="%s" textLength="%d" lengthAdjust="spacingAndGlyphs"%s>%s</text>',
       x, y + self.size * 1.12, self.size * 1.33, self.style:find('b') and 'bold' or 'normal', self.style:find('i') and 'italic' or 'normal', color(self.col), w, self:cl(), esc(s)))
 end
 
@@ -120,6 +124,9 @@ local ui = require 'ui'
 local app = require 'apps.vce.app'
 
 local outdir = arg[1] or '.'
+if arg[2] == 'bi' then
+   require('apps.vce.i18n').default = 'bi'
+end
 
 local function shot(name)
    svg = {}

@@ -654,4 +654,169 @@ function test.ui_dynamic_fields()
    ui.on_event('escape')
 end
 
+-- Bilingual (中英) mode ------------------------------------------------------------------
+
+local function has_cjk(str)
+   return str:find('[\227-\233]') ~= nil
+end
+
+function test.i18n_translations()
+   local i18n = require 'apps.vce.i18n'
+   local solvers = require 'apps.vce.registry'
+   i18n.lang = 'bi'
+   Test.assert(i18n.t('Results') == 'Results 结果', 'UI string')
+   Test.assert(i18n.term('binomial', 'var') == 'variance 方差', 'term')
+   Test.assert(i18n.term('suvat', 't2') == 'time 时间', 'term with numeric suffix')
+   Test.assert(has_cjk(i18n.note('Enter any three of s, u, v, a, t')), 'note translated')
+   Test.assert(i18n.note('Enter any three of s, u, v, a, t'):find('^Enter any three'), 'English kept first')
+   Test.assert(i18n.section('When v = 5') == 'When v = 5  当 v = 5 时', 'section')
+   for _, s in ipairs(solvers.list) do
+      Test.assert(i18n.SOLVERS[s.id], 'solver title for ' .. s.id)
+      local title, short, desc = i18n.solver(s)
+      Test.assert(has_cjk(title) and has_cjk(short) and has_cjk(desc), 'bilingual title ' .. s.id)
+   end
+   i18n.lang = 'en'
+   Test.assert(i18n.t('Results') == 'Results', 'English mode untouched')
+   Test.assert(i18n.term('binomial', 'var') == nil, 'no terms in English mode')
+   Test.assert(i18n.note('Enter any three of s, u, v, a, t') == 'Enter any three of s, u, v, a, t', 'English note')
+end
+
+function test.i18n_coverage()
+   local i18n = require 'apps.vce.i18n'
+   local solvers = require 'apps.vce.registry'
+   local selftest = require 'apps.vce.selftest'
+   i18n.lang = 'bi'
+   local missing = {}
+   -- every result of the examples and self-test cases has a bilingual term
+   local cases = {}
+   for _, s in ipairs(solvers.list) do table.insert(cases, { s.id, s.example }) end
+   for _, c in ipairs(selftest.cases) do table.insert(cases, { c[1], c[2] }) end
+   for _, c in ipairs(cases) do
+      local R = run(c[1], c[2])
+      for _, r in ipairs(R.results) do
+         if not i18n.term(c[1], r.key) then
+            table.insert(missing, c[1] .. ':' .. tostring(r.key))
+         end
+      end
+   end
+   -- notes shown for empty / incomplete input are translated
+   local notes = {}
+   for _, s in ipairs(solvers.list) do
+      local R = run(s.id, s.id == 'kinematics' and { f = '6t' } or {})
+      for _, n in ipairs(R.notes) do table.insert(notes, n.text) end
+   end
+   for _, extra in ipairs({
+      { 'normal', { event = 'X<k' } }, { 'normal', { mu = '1', event = '1<' } },
+      { 'binomial', { n = '10', p = '0.3', event = 'X>' } }, { 'discrete', { x = '1,2', px = '0.5' } },
+      { 'pdf', { f1 = 'x' } }, { 'suvat', { u = '1', v = '2', a = '3', t = '4' } },
+      { 'kinematics', { type = 'a(t)', f = '6t', find = 'q' } }, { 'lincomb', { comb = '2X' } },
+   }) do
+      local R = run(extra[1], extra[2])
+      for _, n in ipairs(R.notes) do table.insert(notes, n.text) end
+   end
+   for _, text in ipairs(notes) do
+      if not has_cjk(i18n.note(text)) then table.insert(missing, 'note: ' .. report.plain(text)) end
+   end
+   i18n.lang = 'en'
+   Test.assert(#missing == 0, 'untranslated: ' .. table.concat(missing, '; '))
+end
+
+function test.ui_bilingual()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   local i18n = require 'apps.vce.i18n'
+   local solvers = require 'apps.vce.registry'
+   app.settings.mode = 'exact'
+   app.open(nil)
+   app.set_lang('bi')
+   Test.assert(i18n.lang == 'bi', 'language switched')
+   Test.assert(has_cjk(app.title.left), 'home title bilingual')
+   local errors = {}
+   local dlg_error = require 'dialog.error'
+   local orig = dlg_error.display
+   dlg_error.display = function(title, msg)
+      table.insert(errors, tostring(msg))
+      return orig(title, msg)
+   end
+   for _, s in ipairs(solvers.list) do
+      app.new_problem(s.id, s.example and (function()
+         local t = {}
+         for k, v in pairs(s.example) do t[k] = v end
+         return t
+      end)())
+      local rows = app.sheet.rows
+      local saw_term, saw_label = false, false
+      for _, r in ipairs(rows) do
+         if r.kind == 'result' and r.term and has_cjk(r.term) then saw_term = true end
+         if (r.kind == 'input' or r.kind == 'choice') and (has_cjk(r.label or '') or has_cjk(r.hint or '')) then
+            saw_label = true
+         end
+         if r.kind == 'step' and not r.section then
+            Test.assert(not has_cjk(r.text), s.id .. ': working step must stay English: ' .. r.text)
+         end
+      end
+      Test.assert(saw_term, s.id .. ': result terms are bilingual')
+      Test.assert(saw_label, s.id .. ': field labels/hints are bilingual')
+      paint_all()
+      -- walk and toggle
+      for _ = 1, 40 do
+         local row = app.sheet:selected()
+         if row and row.kind == 'result' then ui.on_event('enter_key') end
+         ui.on_event('down')
+      end
+      paint_all()
+   end
+   app.show_help()
+   local zh_help = false
+   for _, r in ipairs(app.sheet.rows) do
+      if r.kind == 'step' and has_cjk(r.text) then zh_help = true end
+   end
+   Test.assert(zh_help, 'help has Chinese text')
+   paint_all()
+   app.show_history() paint_all()
+   -- menu titles are bilingual and every entry runs
+   local menu = app.menu()
+   Test.assert(has_cjk(menu[1][1]), 'menu category bilingual')
+   app.show_problem(#app.history.items)
+   for _, cat in ipairs(menu) do
+      for k = 2, #cat do
+         if not cat[k][1]:find('Delete') and not cat[k][1]:find('Language') then
+            cat[k][2]()
+            while #ui.modal > 1 do ui.pop_modal() end
+            if ui.get_focus() ~= app.sheet then ui.set_focus(app.sheet) end
+            paint_all()
+         end
+      end
+   end
+   -- language is saved with the document
+   local state = app.save_state()
+   Test.assert(state.settings.lang == 'bi', 'language saved')
+   app.set_lang('en')
+   app.restore_state(state)
+   Test.assert(i18n.lang == 'bi', 'language restored')
+   app.set_lang('en')
+   app.set_dp(4)
+   app.set_font('normal')
+   app.settings.mode = 'exact'
+   dlg_error.display = orig
+   local real = {}
+   for _, e in ipairs(errors) do
+      if not e:find('Select') and not e:find('请先') then table.insert(real, e) end
+   end
+   Test.assert(#real == 0, 'errors: ' .. table.concat(real, '; '))
+end
+
+function test.sheet_cjk_wrapping()
+   local ui = require 'ui'
+   require 'views.sheet'
+   local sh = ui.sheet(ui.rel { top = 0, left = 0, width = 120, height = 100 })
+   sh:layout_children(ui.rect(0, 0, 318, 212))
+   sh:set_rows({ { kind = 'note', text = 'Enter x\n请输入一个很长很长很长很长很长的中文句子用于测试换行' } })
+   local lines
+   sh:with_layout(function()
+      lines = #sh.rows[1]._lay.content.lines
+   end)
+   Test.assert(lines >= 3, 'CJK text wraps onto several lines (got ' .. tostring(lines) .. ')')
+end
+
 Test.run(test)

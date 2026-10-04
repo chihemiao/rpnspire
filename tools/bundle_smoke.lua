@@ -63,6 +63,11 @@ if file:find('bundle.lua', 1, true) == 1 then
    on.restore(state)
 else
    assert(menu, 'toolpalette registered')
+   if file:find('zh', 1, true) then
+      assert(menu[1][1]:find('[\227-\233]'), 'bilingual document starts with a bilingual menu')
+   else
+      assert(not menu[1][1]:find('[\227-\233]'), 'English document starts in English')
+   end
    -- vce entry: open a solver, type, solve
    -- vce entry: open a solver, type, solve
    keys('1') keys('50') on.enterKey() keys('4') on.enterKey() on.enterKey() keys('X<55') on.enterKey()

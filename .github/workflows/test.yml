@@ -25,10 +25,12 @@ jobs:
         run: |
           npm run build
           npm run build:vce
+          npm run build:vce-zh
           npm run build:hello
       - name: Smoke-test bundles (TI-like sandbox, Lua 5.1)
         run: |
           lua5.1 tools/bundle_smoke.lua vce_bundle.lua
+          lua5.1 tools/bundle_smoke.lua vce_zh_bundle.lua
           lua5.1 tools/bundle_smoke.lua bundle.lua
       - uses: actions/upload-artifact@v4
         with:
@@ -36,4 +38,5 @@ jobs:
           path: |
             rpn.tns
             vce.tns
+            vce_zh.tns
             hello.tns

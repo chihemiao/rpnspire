@@ -14,12 +14,15 @@ local report = require 'apps.vce.report'
 local solvers = require 'apps.vce.registry'
 local History = require 'apps.vce.history'
 local selftest = require 'apps.vce.selftest'
+local i18n = require 'apps.vce.i18n'
 local sym = require 'ti.sym'
+
+local T = i18n.t
 
 local A = {}
 
 A.VERSION = '1.0'
-A.settings = { dp = 4, font = 10, mode = 'exact' }
+A.settings = { dp = 4, font = 10, mode = 'exact', lang = nil }
 A.history = History.new()
 A.screen = 'home'
 A.filter = ''
@@ -96,7 +99,11 @@ end
 
 local function problem_title(p)
    local s = solvers.get(p.solver)
-   local t = s and s.short or p.solver
+   local t = p.solver
+   if s then
+      local _, short = i18n.solver(s)
+      t = short
+   end
    if p.tag and p.tag ~= '' then
       return '[' .. p.tag .. '] ' .. t
    end
@@ -179,7 +186,12 @@ end
 
 function A.error(msg)
    local dlg = require 'dialog.error'
-   dlg.display('Error', msg)
+   -- the error dialog has one line: show the Chinese text in bilingual mode
+   if i18n.bi() then
+      local zh = i18n.UI[msg] or (i18n.note(msg) or ''):match('\n(.*)$')
+      if zh then msg = zh end
+   end
+   dlg.display(T('Error'), msg)
 end
 
 function A.set_title(left, right)
@@ -198,9 +210,11 @@ local HINTS = {
 
 function A.update_hint(row)
    if A.screen == 'history' then
-      A.hint.left = 'enter: open  ' .. sym.CDOT .. '  type: filter  ' .. sym.CDOT .. '  del: delete  ' .. sym.CDOT .. '  esc: home'
+      A.hint.left = i18n.hint('history', 'enter: open  ' .. sym.CDOT .. '  type: filter  ' .. sym.CDOT .. '  del: delete  ' .. sym.CDOT .. '  esc: home')
+   elseif row and HINTS[row.kind] then
+      A.hint.left = i18n.hint(row.kind, HINTS[row.kind])
    else
-      A.hint.left = row and HINTS[row.kind] or 'menu: options  ' .. sym.CDOT .. '  esc: back'
+      A.hint.left = i18n.hint('default', 'menu: options  ' .. sym.CDOT .. '  esc: back')
    end
 end
 
@@ -208,31 +222,36 @@ end
 
 function A.show_home()
    A.screen = 'home'
-   A.set_title('VCE Specialist Maths toolkit', 'menu: options')
+   if i18n.bi() then
+      A.set_title('VCE Specialist ' .. i18n.UI['Specialist Maths toolkit'], 'menu ' .. i18n.UI['menu: options'])
+   else
+      A.set_title('VCE Specialist Maths toolkit', 'menu: options')
+   end
    local rows = {}
    local group
    for i, s in ipairs(solvers.list) do
       if s.group ~= group then
          group = s.group
-         table.insert(rows, { kind = 'header', text = group })
+         table.insert(rows, { kind = 'header', text = T(group) })
       end
-      table.insert(rows, { kind = 'link', key = tostring(i % 10), title = s.title, desc = s.desc,
+      local title, _, desc = i18n.solver(s)
+      table.insert(rows, { kind = 'link', key = tostring(i % 10), title = title, desc = desc,
                            action = { 'new', s.id }, id = 'solver:' .. s.id })
    end
    local items = A.history.items
    if #items > 0 then
-      table.insert(rows, { kind = 'header', text = 'Recent' })
+      table.insert(rows, { kind = 'header', text = T('Recent') })
       for i = #items, math.max(1, #items - 3), -1 do
          local p = items[i]
          table.insert(rows, { kind = 'link', title = problem_title(p), desc = summary(p),
                               action = { 'open', i }, id = 'recent:' .. p.id })
       end
    end
-   table.insert(rows, { kind = 'header', text = 'More' })
-   table.insert(rows, { kind = 'link', title = 'History (' .. #items .. ')', desc = 'all problems, tags, search',
+   table.insert(rows, { kind = 'header', text = T('More') })
+   table.insert(rows, { kind = 'link', title = T('History') .. ' (' .. #items .. ')', desc = T('all problems, tags, search'),
                         action = { 'history' }, id = 'history' })
-   table.insert(rows, { kind = 'link', title = 'Help & keys', action = { 'help' }, id = 'help' })
-   table.insert(rows, { kind = 'link', title = 'Self-test', desc = 'check the solvers with this calculator\'s CAS',
+   table.insert(rows, { kind = 'link', title = T('Help & keys'), action = { 'help' }, id = 'help' })
+   table.insert(rows, { kind = 'link', title = T('Self-test'), desc = T('check the solvers with this calculator\'s CAS'),
                         action = { 'selftest' }, id = 'selftest' })
    A.sheet:set_rows(rows, true)
    A.update_hint(A.sheet:selected())
@@ -258,19 +277,24 @@ end
 function A.build_problem_rows(p, R, I)
    local s = solvers.get(p.solver)
    local rows = {}
-   table.insert(rows, { kind = 'header', text = s.title })
+   local title = i18n.solver(s)
+   table.insert(rows, { kind = 'header', text = title })
    for _, f in ipairs(s.fields) do
       if not f.show or f.show(I) then
          local label = type(f.label) == 'function' and f.label(I) or f.label
+         local hint
+         label, hint = i18n.field(s.id, f, label, f.hint)
          if f.kind == 'choice' then
             local cur = p.inputs[f.id] or f.options[1][1]
             local idx = 1
+            local options = {}
             for k, o in ipairs(f.options) do
                if o[1] == cur then idx = k end
+               options[k] = { o[1], i18n.option(s.id, f.id, o[1], o[2] or o[1]) }
             end
-            table.insert(rows, { kind = 'choice', id = f.id, label = label, options = f.options, index = idx })
+            table.insert(rows, { kind = 'choice', id = f.id, label = label, options = options, index = idx })
          else
-            table.insert(rows, { kind = 'input', id = f.id, label = label, text = p.inputs[f.id] or '', hint = f.hint })
+            table.insert(rows, { kind = 'input', id = f.id, label = label, text = p.inputs[f.id] or '', hint = hint })
          end
       end
    end
@@ -278,23 +302,23 @@ function A.build_problem_rows(p, R, I)
       table.insert(rows, { kind = 'math', m = R.display, key = 'display' })
    end
    for i, n in ipairs(R.notes) do
-      table.insert(rows, { kind = 'note', text = n.text, level = n.kind, key = 'note' .. i })
+      table.insert(rows, { kind = 'note', text = i18n.note(n.text), level = n.kind, key = 'note' .. i })
    end
    p.modes = p.modes or {}
    if #R.results > 0 then
-      table.insert(rows, { kind = 'header', text = 'Results' })
+      table.insert(rows, { kind = 'header', text = T('Results') })
       for _, r in ipairs(R.results) do
          local key = 'res:' .. (r.key or r.label)
          table.insert(rows, { kind = 'result', key = key, label = r.label, exact = r.exact,
-                              mode = p.modes[key] or A.settings.mode })
+                              mode = p.modes[key] or A.settings.mode, term = i18n.term(p.solver, r.key) })
       end
    end
    if #R.steps > 0 then
-      table.insert(rows, { kind = 'header', text = 'Working' })
+      table.insert(rows, { kind = 'header', text = T('Working') })
       local n = 0
       for i, st in ipairs(R.steps) do
          if st.section then
-            table.insert(rows, { kind = 'step', text = st.text, section = true, key = 'step' .. i })
+            table.insert(rows, { kind = 'step', text = i18n.section(st.text), section = true, key = 'step' .. i })
          else
             n = n + 1
             table.insert(rows, { kind = 'step', text = st.text, num = n, key = 'step' .. i })
@@ -464,7 +488,7 @@ function A.on_delete(row)
          return
       end
       if row and row.action and row.action[1] == 'open' then
-         A.confirm('Delete ' .. row.title .. '?', function()
+         A.confirm((i18n.bi() and '删除 Delete ' or 'Delete ') .. row.title .. '?', function()
             A.history:remove(row.action[2])
             A.show_history()
          end)
@@ -484,7 +508,7 @@ end
 function A.confirm(title, yes)
    local dlg = require('dialog.list').display({
       title = title,
-      items = { { title = 'Yes', result = true }, { title = 'No', result = false } },
+      items = { { title = T('Yes'), result = true }, { title = T('No'), result = false } },
    })
    dlg.on_done = function(row)
       if row and row.result then A.safe(yes) end
@@ -494,7 +518,8 @@ end
 function A.tag_dialog()
    local p = A.current()
    if not p then return end
-   local dlg = require('dialog.input').display({ title = 'Tag / label (e.g. 2023 E2 Q5b)', text = p.tag or '' })
+   local title = i18n.bi() and 'Tag 标签（如 2023 E2 Q5b）' or 'Tag / label (e.g. 2023 E2 Q5b)'
+   local dlg = require('dialog.input').display({ title = title, text = p.tag or '' })
    dlg.on_done = function(text)
       p.tag = trim(text)
       if A.screen == 'problem' then A.update_problem_title() end
@@ -508,13 +533,13 @@ function A.store_dialog()
       A.error('Select a result first')
       return
    end
-   local dlg = require('dialog.input').display({ title = 'Store ' .. fmt.plain(A.value_text(row)) .. ' to variable' })
+   local dlg = require('dialog.input').display({ title = 'Store ' .. fmt.plain(A.value_text(row)) .. ' ' .. T('to variable') })
    dlg.on_done = function(name)
       name = trim(name)
       if name == '' then return end
       local value = row.mode == 'approx' and A.value_text(row) or row.exact
       local res, err = cas.eval(cas.p(value) .. sym.STORE .. name)
-      if not res then A.error('Could not store (' .. tostring(err) .. ')') end
+      if not res then A.error(T('Could not store') .. ' (' .. tostring(err) .. ')') end
    end
 end
 
@@ -556,14 +581,16 @@ end
 
 function A.symbol_menu()
    local syms = {
-      { sym.LEQ, 'less or equal' }, { sym.GEQ, 'greater or equal' }, { sym.NEQ, 'not equal' },
-      { sym.INFTY, 'infinity' }, { sym.pi, 'pi' }, { sym.ROOT .. '(', 'square root' },
-      { sym.EULER .. '^(', 'e^' }, { 'ln(', 'natural log' }, { '|', 'given (conditional)' },
-      { 'integral(', 'integral(f,x,a,b)' }, { 'abs(', 'absolute value' },
+      { sym.LEQ, 'less or equal', '小于等于' }, { sym.GEQ, 'greater or equal', '大于等于' },
+      { sym.NEQ, 'not equal', '不等于' }, { sym.INFTY, 'infinity', '无穷大' }, { sym.pi, 'pi', '圆周率' },
+      { sym.ROOT .. '(', 'square root', '平方根' }, { sym.EULER .. '^(', 'e^', '指数' },
+      { 'ln(', 'natural log', '自然对数' }, { '|', 'given (conditional)', '条件' },
+      { 'integral(', 'integral(f,x,a,b)', '积分' }, { 'abs(', 'absolute value', '绝对值' },
    }
    local items = {}
    for _, s in ipairs(syms) do
-      table.insert(items, { title = s[1] .. '   ' .. s[2], action = function() A.insert(s[1]) end })
+      local title = s[1] .. '   ' .. s[2] .. (i18n.bi() and (' ' .. s[3]) or '')
+      table.insert(items, { title = title, action = function() A.insert(s[1]) end })
    end
    ui.menu.menu_at_point(A.sheet, items, ui.point(20, 40))
 end
@@ -572,21 +599,21 @@ function A.on_context(row)
    if not row then return end
    local items = {}
    if row.kind == 'result' then
-      table.insert(items, { title = 'Exact ' .. sym.DLIMP .. ' decimal', action = function() A.sheet:toggle(row) ui.update() end })
-      table.insert(items, { title = 'Copy value', action = function() A.sheet:on_copy() end })
-      table.insert(items, { title = 'Store to variable...', action = function() A.store_dialog() end })
+      table.insert(items, { title = T('Exact ' .. sym.DLIMP .. ' decimal'), action = function() A.sheet:toggle(row) ui.update() end })
+      table.insert(items, { title = T('Copy value'), action = function() A.sheet:on_copy() end })
+      table.insert(items, { title = T('Store to variable...'), action = function() A.store_dialog() end })
       if A.host and A.host.push then
-         table.insert(items, { title = 'Send to RPN stack', action = function() A.host.push(A.value_text(row)) end })
+         table.insert(items, { title = T('Send to RPN stack'), action = function() A.host.push(A.value_text(row)) end })
       end
    elseif row.kind == 'input' then
-      table.insert(items, { title = 'Insert document function...', action = function() A.function_menu() end })
-      table.insert(items, { title = 'Insert symbol...', action = function() A.symbol_menu() end })
-      table.insert(items, { title = 'Clear field', action = function() A.sheet:on_clear() ui.update() end })
+      table.insert(items, { title = T('Insert document function...'), action = function() A.function_menu() end })
+      table.insert(items, { title = T('Insert symbol...'), action = function() A.symbol_menu() end })
+      table.insert(items, { title = T('Clear field'), action = function() A.sheet:on_clear() ui.update() end })
    else
-      table.insert(items, { title = 'Copy line', action = function() A.sheet:on_copy() end })
+      table.insert(items, { title = T('Copy line'), action = function() A.sheet:on_copy() end })
    end
    if A.screen == 'problem' then
-      table.insert(items, { title = 'Tag problem...', action = function() A.tag_dialog() end })
+      table.insert(items, { title = T('Tag problem...'), action = function() A.tag_dialog() end })
    end
    local f = A.sheet:frame()
    local y = f.y + (row._y or 0) - A.sheet.scroll_y + 10
@@ -605,45 +632,32 @@ function A.show_history()
       local title = problem_title(p)
       local desc = summary(p)
       if filt == '' or (title .. ' ' .. desc):lower():find(filt, 1, true) then
-         table.insert(rows, { kind = 'link', key = nil, title = '#' .. i .. ' ' .. title, desc = desc ~= '' and desc or '(empty)',
+         table.insert(rows, { kind = 'link', key = nil, title = '#' .. i .. ' ' .. title, desc = desc ~= '' and desc or T('(empty)'),
                               action = { 'open', i }, id = 'hist:' .. p.id })
       end
    end
    if #rows == 0 then
-      table.insert(rows, { kind = 'note', text = filt ~= '' and ('No match for "' .. A.filter .. '"') or 'No problems yet', level = 'info' })
+      local nomatch = 'No match for "' .. A.filter .. '"' .. (i18n.bi() and '\n无匹配结果' or '')
+      table.insert(rows, { kind = 'note', text = filt ~= '' and nomatch or T('No problems yet', '\n'), level = 'info' })
    end
-   A.set_title('History' .. (A.filter ~= '' and ('  /' .. A.filter) or ''), #items .. ' problems')
+   local count = i18n.bi() and (#items .. ' ' .. i18n.UI['problems']) or (#items .. ' problems')
+   A.set_title(T('History') .. (A.filter ~= '' and ('  /' .. A.filter) or ''), count)
    A.sheet:set_rows(rows, true)
    A.update_hint(A.sheet:selected())
 end
 
 -- Help -----------------------------------------------------------------------------
 
-A.HELP = {
-   { 'header', 'Using a solver' },
-   { 'text', 'Type the values you know into the fields and press enter: everything that can be worked out is shown under Results, with the Working underneath (written the way VCE marking expects).' },
-   { 'text', 'Leave unknowns empty. Events are typed like the question: `45<X<55`, X>k (unknown k), X' .. sym.GEQ .. '3, X>2|X' .. sym.GEQ .. '1 (conditional).' },
-   { 'text', 'Use functions from other pages of the same problem, e.g. a(t) = f11(t) or u = f11(2). ctrl+menu on a field lists them.' },
-   { 'header', 'Keys' },
-   { 'text', 'up/down: move  ' .. sym.CDOT .. '  tab / shift+tab: next/previous field  ' .. sym.CDOT .. '  enter: solve and go to next field' },
-   { 'text', 'On a result: enter or click switches exact ' .. sym.DLIMP .. ' decimal; left/right also switch or scroll long answers.' },
-   { 'text', 'On results/working: n / p next or previous problem, t tag, h history, d all decimal, e all exact.' },
-   { 'text', 'ctrl+C copies the selected value or working line. menu opens the toolbar menu (new problem, tag, settings). ctrl+menu opens the context menu.' },
-   { 'header', 'Tips' },
-   { 'text', 'Decimal places: menu > Settings. Answers are rounded only for display; values keep full precision.' },
-   { 'text', 'Kinematics: pick what is given (a(t), a(v), a(x), v(t), v(x), v' .. sym.SQUARED .. '(x), x(t)), enter t0, x0, v0 (one known state) and optionally a second condition like x(2)=5. "Find when" accepts t=3, v=0, x=5 or a=0.' },
-   { 'text', 'Run Self-test once on your calculator to check the solvers with its CAS.' },
-}
-
 function A.show_help()
    A.screen = 'help'
-   A.set_title('Help', 'v' .. A.VERSION)
+   A.set_title(T('Help'), 'v' .. A.VERSION)
    local rows = {}
-   for i, h in ipairs(A.HELP) do
+   local bi = i18n.bi()
+   for i, h in ipairs(i18n.HELP) do
       if h[1] == 'header' then
-         table.insert(rows, { kind = 'header', text = h[2] })
+         table.insert(rows, { kind = 'header', text = bi and (h[2] .. ' ' .. h[3]) or h[2] })
       else
-         table.insert(rows, { kind = 'step', text = h[2], key = 'help' .. i })
+         table.insert(rows, { kind = 'step', text = bi and (h[2] .. '\n' .. h[3]) or h[2], key = 'help' .. i })
       end
    end
    A.sheet:set_rows(rows, false)
@@ -652,7 +666,7 @@ end
 
 function A.show_selftest()
    A.screen = 'selftest'
-   A.set_title('Self-test', 'running...')
+   A.set_title(T('Self-test'), T('running...'))
    local rows = {}
    local passed = 0
    for i, c in ipairs(selftest.cases) do
@@ -666,9 +680,13 @@ function A.show_selftest()
       end
       table.insert(rows, { kind = 'step', text = text, num = i, key = 'st' .. i })
    end
-   table.insert(rows, 1, { kind = 'note', text = passed .. ' of ' .. #selftest.cases .. ' checks passed',
+   local summary_text = passed .. ' of ' .. #selftest.cases .. ' checks passed'
+   if i18n.bi() then
+      summary_text = summary_text .. '\n' .. passed .. '/' .. #selftest.cases .. ' ' .. i18n.UI['checks passed']
+   end
+   table.insert(rows, 1, { kind = 'note', text = summary_text,
                            level = passed == #selftest.cases and 'info' or 'error' })
-   A.set_title('Self-test', passed .. '/' .. #selftest.cases)
+   A.set_title(T('Self-test'), passed .. '/' .. #selftest.cases)
    A.sheet:set_rows(rows, false)
    A.update_hint(A.sheet:selected())
 end
@@ -688,6 +706,22 @@ function A.set_font(name)
    A.redraw_current()
 end
 
+function A.set_lang(lang)
+   A.settings.lang = lang
+   i18n.lang = lang
+   A.register_menu()
+   A.sheet:invalidate_layout()
+   if A.screen == 'history' then
+      A.show_history()
+   elseif A.screen == 'help' then
+      A.show_help()
+   elseif A.screen == 'selftest' then
+      A.show_home()
+   else
+      A.redraw_current()
+   end
+end
+
 function A.redraw_current()
    if A.screen == 'problem' then
       A.refresh_problem(true)
@@ -701,16 +735,23 @@ end
 -- Toolpalette menu --------------------------------------------------------------------
 
 local function item(title, fn)
-   return { title, function() A.safe(fn) end }
+   return { T(title), function() A.safe(fn) end }
+end
+
+local function dp_item(n)
+   local title = n .. ' decimal places'
+   if i18n.bi() then title = title .. ' ' .. n .. ' ' .. i18n.UI['decimal places'] end
+   return { title, function() A.safe(A.set_dp, n) end }
 end
 
 function A.menu()
-   local solver_items = { 'Solvers' }
+   local solver_items = { T('Solvers') }
    for _, s in ipairs(solvers.list) do
-      table.insert(solver_items, item(s.title, function() A.new_problem(s.id) end))
+      local title = i18n.solver(s)
+      table.insert(solver_items, { title, function() A.safe(A.new_problem, s.id) end })
    end
    local m = {
-      { 'Problem',
+      { T('Problem'),
         item('Home', A.show_home),
         item('New (same type)', function()
            local p = A.current()
@@ -747,14 +788,14 @@ function A.menu()
         end),
       },
       solver_items,
-      { 'History',
+      { T('History'),
         item('Open history', A.show_history),
         item('Search (type in history)', function()
            A.filter = ''
            A.show_history()
         end),
       },
-      { 'Result',
+      { T('Result'),
         item('Copy value / line', function() A.sheet:on_copy() end),
         item('Store value to variable...', A.store_dialog),
         item('Insert document function...', A.function_menu),
@@ -762,17 +803,15 @@ function A.menu()
         item('All exact', function() A.set_all_modes('exact') end),
         item('All decimal', function() A.set_all_modes('approx') end),
       },
-      { 'Settings',
-        item('2 decimal places', function() A.set_dp(2) end),
-        item('3 decimal places', function() A.set_dp(3) end),
-        item('4 decimal places', function() A.set_dp(4) end),
-        item('5 decimal places', function() A.set_dp(5) end),
-        item('6 decimal places', function() A.set_dp(6) end),
+      { T('Settings'),
+        dp_item(2), dp_item(3), dp_item(4), dp_item(5), dp_item(6),
         item('Font small', function() A.set_font('small') end),
         item('Font normal', function() A.set_font('normal') end),
         item('Font large', function() A.set_font('large') end),
+        item('Language: English', function() A.set_lang('en') end),
+        item('Language: Chinese + English', function() A.set_lang('bi') end),
       },
-      { 'Help',
+      { T('Help'),
         item('Help & keys', A.show_help),
         item('Self-test', A.show_selftest),
       },
@@ -796,7 +835,7 @@ function A.save_state()
    return {
       v = 1,
       history = A.history:save(),
-      settings = { dp = A.settings.dp, font = A.settings.font, mode = A.settings.mode },
+      settings = { dp = A.settings.dp, font = A.settings.font, mode = A.settings.mode, lang = A.settings.lang },
    }
 end
 
@@ -808,6 +847,10 @@ function A.restore_state(state)
       A.settings.dp = tonumber(s.dp) or A.settings.dp
       A.settings.font = tonumber(s.font) or A.settings.font
       if s.mode == 'approx' or s.mode == 'exact' then A.settings.mode = s.mode end
+      if s.lang == 'en' or s.lang == 'bi' then
+         A.settings.lang = s.lang
+         i18n.lang = s.lang
+      end
    end
    fmt.dp = A.settings.dp
    if A.sheet then
@@ -822,6 +865,7 @@ end
 --   { push = function(value) ... end }  -- send a value to the RPN stack
 function A.open(host)
    cas.init()
+   i18n.lang = A.settings.lang or i18n.default
    mb.rename = cas.display_name
    fmt.dp = A.settings.dp
    A.host = host

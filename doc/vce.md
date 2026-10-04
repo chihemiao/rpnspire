@@ -2,9 +2,10 @@
 
 A TI-Nspire CX II CAS Lua program for VCE Specialist Mathematics (tech-active) probability, statistics and mechanics questions. You type in the values you know, press **enter**, and it fills in everything that can be worked out. It shows exact values first, and each answer comes with brief working laid out the way VCE marking schemes expect.
 
-The toolkit ships two ways:
+The toolkit ships three ways:
 
 - `vce.tns`: a standalone document. Open it and the toolkit starts.
+- `vce_zh.tns`: the same toolkit in bilingual mode (中英双语). The interface, field labels and hints, notes, menus, help and the name of every result (for example *variance 方差*, *Type II error 第二类错误*) appear in Chinese and English. The working steps stay in English, the language of the VCE exam. You can switch language in either document under **menu › Settings › Language**; the choice is saved with the document.
 - `rpn.tns`: rpnspire with the toolkit built in. Press <kbd>.</kbd> <kbd>a</kbd> and choose **VCE Specialist toolkit**. With **Send to RPN stack** in the context menu you can push a result onto the rpnspire stack.
 
 > Status: the solvers are tested on a desktop against a numeric CAS mock (`testcas.lua`), and the bundled document is smoke-tested in a TI-like Lua 5.1 sandbox. The real TI CAS (exact output, syntax) still has to be checked on a handheld or in the TI-Nspire CX CAS software. Run **Help › Self-test** once on your calculator: it solves 22 known problems and reports any that fail.
@@ -59,10 +60,19 @@ Each problem you open is kept in the history (up to 60), together with its input
 
 Under **menu › Settings** you can choose 2–6 decimal places for decimal answers and a small, normal or large font. Decimal places affect display only; values keep full precision. Use **All exact / All decimal** to switch every result at once.
 
+## 中英双语版 (vce_zh.tns)
+
+- 界面、输入格的标签和提示、菜单、帮助、提示信息都显示中英两种语言。
+- 每个结果旁边用灰色小字标出术语的中英文名称，例如 `σ² = 16    variance 方差`、`P(Type II) = 0.1962    Type II error 第二类错误`。
+- 解题步骤（Working）保持英文，与 VCE 考试的答题语言一致。
+- 两个文件可以随时在 **menu › 设置 Settings › 语言 Language** 里切换语言，设置会随文档保存。
+- 中文显示依赖计算器系统字体中的中文字形。TI-Nspire CX II 系统支持简体中文，一般可以正常显示；如果出现方框，请切换回英文。
+
 ## Development
 
 - Solvers: `apps/vce/solvers/*.lua`. Each solver declares fields and a `solve(inputs, report)` function that adds results, working lines and notes.
 - CAS bridge: `apps/vce/cas.lua`. Formatting: `apps/vce/fmt.lua`. Event parser: `apps/vce/event.lua`.
 - UI: `views/sheet.lua` holds the worksheet rows; `ui/mathbox.lua` is the 2D pretty printer; `apps/vce/app.lua` handles screens, menu, history and persistence.
-- Entry points: `vce.lua` for the standalone document and `apps/vce/launcher.lua` for the rpnspire app list.
+- Entry points: `vce.lua` (English) and `vce_zh.lua` (bilingual) share `apps/vce/entry.lua`; `apps/vce/launcher.lua` adds the toolkit to the rpnspire app list.
+- Translations: `apps/vce/i18n.lua` (interface strings, solver titles, field hints, result terms, note patterns, help). Working steps are not translated.
 - Tests: `lua test_vce.lua` runs the solvers against the numeric mock in `testcas.lua` and drives the UI with key events. `lua5.1 tools/bundle_smoke.lua vce_bundle.lua` runs the built bundle without `require`/`io`/`os`. `tools/render.sh <dir>` renders approximate desktop screenshots (needs Chromium).
