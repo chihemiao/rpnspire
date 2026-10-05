@@ -8,7 +8,7 @@ The toolkit ships three ways:
 - `vce_zh.tns`: the same toolkit in bilingual mode (中英双语). The interface, field labels and hints, notes, menus, help and the name of every result (for example *variance 方差*, *Type II error 第二类错误*) appear in Chinese and English. The working steps stay in English, the language of the VCE exam. You can switch language in either document under **menu › Settings › Language**; the choice is saved with the document.
 - `rpn.tns`: rpnspire with the toolkit built in. Press <kbd>.</kbd> <kbd>a</kbd> and choose **VCE Specialist toolkit**. With **Send to RPN stack** in the context menu you can push a result onto the rpnspire stack.
 
-> Status: the solvers are tested on a desktop against a numeric CAS mock (`testcas.lua`), and the bundled document is smoke-tested in a TI-like Lua 5.1 sandbox. The real TI CAS (exact output, syntax) still has to be checked on a handheld or in the TI-Nspire CX CAS software. Run **Help › Self-test** once on your calculator: it solves 39 known problems and reports any that fail.
+> Status: the solvers are tested on a desktop against a numeric CAS mock (`testcas.lua`), and the bundled document is smoke-tested in a TI-like Lua 5.1 sandbox. The real TI CAS (exact output, syntax) still has to be checked on a handheld or in the TI-Nspire CX CAS software. Run **Help › Self-test** once on your calculator: it solves 41 known problems and reports any that fail.
 
 ## Solvers
 
@@ -20,7 +20,7 @@ Solvers are grouped on the home screen: calculus first, then mechanics, then pro
 | 2 | Area, volume, arc length, surface area | y = f(x), x = g(y) or parametric x(t), y(t); optional second curve; limits; axis of rotation | area (split where the curve crosses the axis or the curves cross) and the signed integral, volume by discs/washers or by the inverse function and shells for the other axis, arc length, surface area, a shaded graph |
 | 3 | DE models | model: growth/decay, Newton's cooling, logistic, mixing (tank), general dy/dx, related rates; initial value, a second data point or half-life/doubling time; "find" (`t=10`, `N=200`) | the DE and its solution, k, values and times, doubling/half-life, limiting value, logistic point of fastest growth and maximum rate, mixing amount and concentration (variable volume too), deSolve result and Euler table with a slope field, related-rates chain rule; a graph |
 | 4 | SUVAT | any three of s, u, v, a, t | the other two (both roots when there are two, negative t rejected) |
-| 5 | Kinematics | a(t), a(v), a(x), v(t), v(x), v²(x) or x(t); known state t₀, x₀, v₀; a second condition (`x(2)=5`); "find when" (`t=3`, `v=0`, `x=5`, `a=0`); time interval | the derived relations (v(t), x(t), v(x), t(v), x(v), ...), terminal velocity, values at the requested instant, displacement, distance (split at turning points), average velocity and speed |
+| 5 | Kinematics | a(t), a(v), a(x), v(t), v(x), v²(x) or x(t), which may contain an unknown constant k; known state t₀, x₀, v₀ (optional); conditions in "also" (`x(2)=5`, `a=-3.5 when v=7`, `a(7)=-3.5`, several separated by `;`); "find when" (`t=3`, `v=0`, `x=5`, `a=0`); time interval | the derived relations (v(t), x(t), v(x), t(v), x(v), ...) with their domains, unknown constants, terminal velocity, values at the requested instant, displacement, distance (split at turning points), average velocity and speed; without an initial state, the general solution with +c |
 | 6 | Normal distribution | μ, σ or σ², event (`45<X<55`, `X>k`, `X>60\|X>50`), Pr, area | probability, inverse normal (k), unknown μ or σ, z-scores, x for a given area |
 | 7 | Normal: find μ and σ | two events with probabilities | μ, σ by solving the standardised equations simultaneously |
 | 8 | Binomial | any two of n, p, E(X), Var(X), SD(X); event; Pr (`>=0.95`) | exact probabilities (binomCdf/binomPdf working), conditional probabilities, smallest n, p from a probability |
@@ -29,6 +29,17 @@ Solvers are grouped on the home screen: calculus first, then mechanics, then pro
 | – | Linear combinations | E, SD/Var of X and Y, W = `2X-3Y+4` or `X1+X2+X3`, event such as `X1+X2>2Y` | E(W), Var(W) (independent variables), normal probabilities |
 | – | Sample mean & CI | μ, σ (s), n, x̄, level, z, E, width, interval | SD(X̄), z, margin of error, confidence interval, sample size (rounded up), level from an interval, P(X̄ > a) |
 | – | Hypothesis test | μ₀, H₁ (<, >, ≠), σ, n, x̄, α, decision rule c, true μ | z, p-value, decision, critical x̄, P(Type I), P(Type II), power |
+
+### Kinematics formulas and domains
+
+Each derived formula shows its domain under it. The domain follows from the motion:
+- `a(v)`: v moves from v₀ towards the terminal velocity (or 0, or ±∞).
+- `a(x)` and `v²(x)`: x moves from x₀ to the turning point where v² = 0.
+- Formulas in t hold for t ≥ t₀, cut short where the formula stops being defined.
+
+Select a formula and press **enter** to see only the steps that lead to it, including the given information and any constant found. Left/right still switches exact ⇄ decimal.
+
+If the question gives no x₀ or v₀ but, for example, the acceleration at a certain velocity, type that condition into **also**: `a=-3.5 when v=7`. The unknown constant is found first. Without an initial state, t(v) and x(v) are given as general solutions with +c.
 
 ### Graphs
 
@@ -75,7 +86,7 @@ Exact values are shown where the CAS finds them. Points it finds only numericall
 | digits on the home screen | open solver 1–9, 0 (the tenth) |
 | up / down | move between rows |
 | typing | edits the selected field (a preview shows it in 2D, like the CAS) |
-| enter | solve and move to the next field; on a result it switches **exact ⇄ decimal** |
+| enter | solve and move to the next field; on a result it switches **exact ⇄ decimal**; on a derived formula (e.g. x(v)) it opens the working for that formula only (esc returns) |
 | click (touchpad) | select a row; clicking a result switches exact ⇄ decimal |
 | left / right | move the cursor in a field, change a choice, switch a result or scroll a long answer |
 | tab / shift+tab | next / previous field |

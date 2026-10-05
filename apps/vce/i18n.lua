@@ -28,6 +28,9 @@ I.UI = {
    ['check the solvers with this calculator\'s CAS'] = '用本机 CAS 检查各解题器',
    ['Results'] = '结果',
    ['Graph'] = '图像',
+   ['domain'] = '定义域',
+   ['Working for'] = '求解步骤',
+   ['esc: back'] = '返回',
    ['enter: full screen'] = '全屏',
    ['Working'] = '步骤',
    ['Help'] = '帮助',
@@ -92,6 +95,8 @@ I.HINTS = {
    link = 'enter 打开 · 数字键 快速打开',
    math = 'left/right 滚动',
    graph = 'enter/点击 全屏 · up/down 滚动',
+   formula = 'enter 查看此公式的步骤 · left/right 精确⇔小数',
+   detail = 'esc 返回本题 · enter 精确⇔小数',
    history = 'enter 打开 · 打字 搜索 · del 删除 · esc 主页',
    default = 'menu 菜单 · esc 返回',
 }
@@ -246,7 +251,7 @@ I.FIELDS = {
       t0 = { hint = '已知值对应的时刻（默认 0）' },
       x0 = { hint = 'position 位置 (t0 时)' },
       v0 = { hint = 'velocity 速度 (t0 时)' },
-      c2 = { label = '另一条件', hint = 'x(2)=5   v(1)=3   v=2,x=1' },
+      c2 = { label = '另一条件', hint = 'x(2)=5   v=2,x=1   a=-3.5,v=7（求 k）' },
       find = { label = '求何时', hint = 't=3   v=0   x=5   a=0' },
       t1 = { label = '从', hint = 'displacement 位移 / distance 路程' },
       t2 = { label = '到' },
@@ -348,6 +353,7 @@ I.TERMS = {
       q_a = { 'acceleration', '加速度' },
       disp = { 'displacement', '位移' }, dist = { 'distance travelled', '路程' },
       avgv = { 'average velocity', '平均速度' }, avgs = { 'average speed', '平均速率' },
+      param = { 'constant', '常数' },
    },
    lincomb = { mean = { 'mean of W', 'W 的均值' }, var = { 'variance of W', 'W 的方差' },
                sd = { 'SD of W', 'W 的标准差' } },
@@ -356,6 +362,8 @@ I.TERMS = {
 -- Notes and errors: Lua pattern -> Chinese (captures as %1, %2)
 I.NOTES = {
    { '^Enter f%(x%) and a window$', '请输入 f(x) 和显示区间' },
+   { '^Unknown constant (.+): add a condition such as a=%-3%.5 when v=7$', '未知常数 %1：请在“另一条件”中给出条件，如 a=-3.5 when v=7' },
+   { '^Could not find (.+) from the conditions$', '无法由条件求出 %1' },
    { '^Only x may appear in f%(x%).*$', 'f(x) 中只能含 x：参数请先赋值' },
    { '^x from must be less than x to$', 'x 的下限必须小于上限' },
    { '^Enter x%(t%), y%(t%) and the t interval$', '请输入 x(t)、y(t) 和 t 的区间' },
@@ -453,6 +461,7 @@ I.NOTES = {
 
 -- Working-step section headings: pattern -> Chinese
 I.SECTIONS = {
+   { '^Domains$', '定义域' },
    { '^Asymptotes$', '渐近线' },
    { '^Turning points$', '驻点' },
    { '^Points of inflection$', '拐点' },
@@ -527,7 +536,7 @@ function I.term(sid, key)
    local function lookup(k)
       return (I.TERMS[sid] and I.TERMS[sid][k]) or I.TERMS._[k]
    end
-   local t = lookup(key) or lookup((key:gsub('%d+$', '')))
+   local t = lookup(key) or lookup((key:gsub('%d+$', ''))) or lookup((key:gsub('_.*$', '')))
    if not t then return nil end
    return t[1] .. ' ' .. t[2]
 end
@@ -572,6 +581,8 @@ I.HELP = {
      '小数位数：menu › 设置。只在显示时四舍五入，内部保持全精度。' },
    { 'text', 'Kinematics: pick what is given (a(t), a(v), a(x), v(t), v(x), v²(x), x(t)), enter t0, x0, v0 (one known state) and optionally a second condition like x(2)=5. "Find when" accepts t=3, v=0, x=5 or a=0.',
      '运动学：选择已知类型（a(t)、a(v)、a(x)、v(t)、v(x)、v²(x)、x(t)），输入 t0、x0、v0（一个已知状态），可再加一个条件如 x(2)=5。“求何时”可填 t=3、v=0、x=5 或 a=0。' },
+   { 'text', 'Kinematics formulas: select a derived formula such as x(v) and press enter to see only the working for that formula; its domain is shown under it. Unknown constants (k) come from a condition in "also", e.g. a=-3.5 when v=7 or a(7)=-3.5; several conditions are separated by ;.',
+     '运动学公式：选中推导出的公式（如 x(v)）按 enter，只显示这个公式的步骤；公式下方显示定义域。未知常数（k）由“另一条件”求出，如 a=-3.5 when v=7 或 a(7)=-3.5；多个条件用 ; 分隔。' },
    { 'text', 'Function graph: enter f(x) and the x window (the y window is optional). It finds asymptotes, turning points, points of inflection, intercepts, holes, jumps, endpoints and points where f is not differentiable; the choices show or hide each feature (asymptotes are dashed).',
      '函数图像：输入 f(x) 和 x 范围（y 范围可选），求出渐近线、驻点、拐点、截距、空心点、跳跃点、端点和不可导点；可选择在图上显示或隐藏各项（渐近线为虚线）。' },
    { 'text', 'Graphs: select a graph and press enter (or click it) for full screen. left/right trace · up/down jump between marked points · tab next curve · + / − zoom · 8 4 6 2 pan · 5 reset · l labels · a asymptotes · esc back.',

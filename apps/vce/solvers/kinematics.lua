@@ -30,7 +30,7 @@ local S = {
       { id = 't0', label = 't0', hint = 'time of known values (default 0)' },
       { id = 'x0', label = 'x0', hint = 'position at t0' },
       { id = 'v0', label = 'v0', hint = 'velocity at t0' },
-      { id = 'c2', label = 'also', hint = 'x(2)=5   v(1)=3   v=2,x=1' },
+      { id = 'c2', label = 'also', hint = 'x(2)=5   v=2,x=1   a=-3.5,v=7 (finds k)' },
       { id = 'find', label = 'Find when', hint = 't=3   v=0   x=5   a=0' },
       { id = 't1', label = 'from t=', hint = 'displacement / distance' },
       { id = 't2', label = 'to t=', hint = '' },
@@ -40,25 +40,104 @@ local S = {
 
 local MAP = U.locals_map()
 
--- Parse 'x(2)=5', 'v(1)=3', 'v=2,x=1', 't=1,x=0' into {t=, x=, v=}
-local function parse_cond(text)
-   if not text or U.trim(text) == '' then return nil end
-   local c = {}
-   text = text:gsub(' when ', ','):gsub(' at ', ',')
-   for _, part in ipairs(cas.split_top(text, ',')) do
-      local var, arg, val = part:match('^%s*([txvTXV])%s*%((.-)%)%s*=%s*(.-)%s*$')
-      if var then
-         c.t = arg
-         c[var:lower()] = val
-      else
-         var, val = part:match('^%s*([txvTXV])%s*=%s*(.-)%s*$')
-         if var then c[var:lower()] = val end
+-- Variable of the given function: a(v) -> v, v(x) -> x, x(t) -> t
+local function indep_of(kind)
+   return kind:match('%((%a)%)$') or 't'
+end
+
+-- Parse conditions into a list of {t=, x=, v=, a=}. Conditions are separated
+-- by ';' and the parts of one condition by ',' or 'when':
+--   'x(2)=5', 'v=2,x=1', 'a=-3.5 when v=7', 'a(7)=-3.5' (for a(v): v = 7)
+-- Function notation uses t, except for the given function's own letter,
+-- which uses its variable (a(v): a(7) means v = 7).
+local function parse_conds(text, kind)
+   if not text or U.trim(text) == '' then return {} end
+   local own, own_var = (kind or 'a(t)'):sub(1, 1), indep_of(kind or 'a(t)')
+   local out = {}
+   for _, one in ipairs(cas.split_top(text, ';')) do
+      local c = {}
+      one = one:gsub(' when ', ','):gsub(' at ', ','):gsub(' if ', ',')
+      for _, part in ipairs(cas.split_top(one, ',')) do
+         local var, arg, val = part:match('^%s*([txvaTXVA])%s*%((.-)%)%s*=%s*(.-)%s*$')
+         if var then
+            var = var:lower()
+            c[var == own and own_var or 't'] = arg
+            c[var] = val
+         else
+            var, val = part:match('^%s*([txvaTXVA])%s*=%s*(.-)%s*$')
+            if var then c[var:lower()] = val end
+         end
+      end
+      for k, v in pairs(c) do
+         c[k] = U.read(v).val
+      end
+      if next(c) then table.insert(out, c) end
+   end
+   return out
+end
+
+-- Domain helpers -------------------------------------------------------------
+
+-- 'lo<var≤hi' (nil bound = unbounded); nil when unbounded both ways
+local function interval(lo, lo_inc, var, hi, hi_inc)
+   if lo and hi then
+      return lo .. (lo_inc and U.LEQ or '<') .. var .. (hi_inc and U.LEQ or '<') .. hi
+   elseif lo then
+      return var .. (lo_inc and U.GEQ or '>') .. lo
+   elseif hi then
+      return var .. (hi_inc and U.LEQ or '<') .. hi
+   end
+   return nil
+end
+
+-- Real roots of e = 0 in var: list of { e = exact, n = number }
+local function real_roots(e, var)
+   local out = {}
+   local sols = cas.solve(e .. '=0', var)
+   for _, r in ipairs(sols or {}) do
+      if not r:find('@', 1, true) then
+         local n = cas.n(r)
+         if n then table.insert(out, { e = r, n = n }) end
       end
    end
-   for k, v in pairs(c) do
-      c[k] = U.read(v).val
+   return out
+end
+
+-- Where a rate g(var) is zero (closed = reached) or undefined (open)
+local function barriers(g, var, zero_closed)
+   local out = {}
+   for _, r in ipairs(real_roots(g, var)) do
+      r.closed = zero_closed
+      table.insert(out, r)
    end
-   return next(c) and c or nil
+   local den = cas.eval('getDenom(' .. g .. ')')
+   if den and not den:find('getDenom', 1, true) and cas.uses(den, { var }) then
+      for _, r in ipairs(real_roots(den, var)) do
+         r.closed = false
+         table.insert(out, r)
+      end
+   end
+   return out
+end
+
+-- Nearest barrier strictly beyond start in direction dir (+1/-1)
+local function nearest(list, start, dir)
+   local best
+   for _, b in ipairs(list) do
+      local d = (b.n - start) * dir
+      if d > 1e-12 and (not best or d < (best.n - start) * dir) then best = b end
+   end
+   return best
+end
+
+-- One-sided limit of e as var -> point from the side opposite to dir
+-- (approaching while moving in direction dir); nil if unknown
+local function limit_toward(e, var, point, dir)
+   local where = point or (dir > 0 and U.INF or U.NEGINF)
+   local q = 'limit(' .. e .. ',' .. var .. ',' .. where .. (point and (',' .. (dir > 0 and '-1' or '1')) or '') .. ')'
+   local L = cas.eval(q)
+   if not L or L:find('limit', 1, true) or L:find('undef', 1, true) then return nil end
+   return L, cas.n(L)
 end
 
 function S.solve(I, R)
@@ -69,6 +148,8 @@ function S.solve(I, R)
    end
    local f = cas.input(I.f, MAP)
    local fv = U.simp(f)
+   local base = ({ ['a(t)'] = 'at', ['a(v)'] = 'av', ['a(x)'] = 'ax', ['v(t)'] = 'vt', ['v(x)'] = 'vx',
+                   ['v2(x)'] = 'v2x', ['x(t)'] = 'xt' })[kind]
 
    -- Known values -----------------------------------------------------------
    local conds = {}
@@ -78,8 +159,7 @@ function S.solve(I, R)
       table.insert(conds, { t = t0 and t0.val or ((x0 or v0) and '0' or nil),
                             x = x0 and x0.val, v = v0 and v0.val })
    end
-   local c2 = parse_cond(I.c2)
-   if c2 then table.insert(conds, c2) end
+   for _, c in ipairs(parse_conds(I.c2, kind)) do table.insert(conds, c) end
 
    local function find_cond(a, b)
       for _, c in ipairs(conds) do
@@ -99,6 +179,68 @@ function S.solve(I, R)
 
    local function dummy(e, from, to)
       return cas.rename(e, { [from] = to }, true)
+   end
+
+   -- Unknown constants (k, g, ...) from conditions such as a=-3.5 when v=7 ------
+   R:tag(base)
+   local motion = { [T] = true, [X] = true, [V] = true }
+   local params = {}
+   for _, u in ipairs(U.unknowns(fv)) do
+      if not motion[u] then table.insert(params, u) end
+   end
+   if #params > 0 then
+      local own = kind:sub(1, 1)
+      local ivar = ({ t = T, x = X, v = V })[indep_of(kind)]
+      show_given(kind == 'v2(x)' and ('v' .. U.SQ) or own)
+      local eqs = {}
+      for _, c in ipairs(conds) do
+         local dep = c[own]
+         if kind == 'v2(x)' and c.v then dep = U.par(c.v) .. '^2' end
+         local at = c[indep_of(kind)]
+         if dep and at then
+            local lhs = cas.rename(fv, { [ivar] = U.par(at) }, true)
+            lhs = cas.eval(lhs) or lhs
+            R:step('When ' .. indep_of(kind) .. ' = ' .. M(at) .. ', ' .. (kind == 'v2(x)' and ('v' .. U.SQ) or own)
+                   .. ' = ' .. M(dep) .. ':  ' .. M(lhs .. '=' .. dep))
+            table.insert(eqs, U.par(lhs) .. '=' .. U.par(dep))
+         end
+      end
+      local names = {}
+      for _, p in ipairs(params) do table.insert(names, cas.display_name(p)) end
+      if #eqs >= #params then
+         local assigns = {}
+         if #params == 1 then
+            local sols = cas.solve(table.concat(eqs, ' and '), params[1])
+            if sols and sols[1] then assigns[1] = { params[1], sols[1] } end
+         else
+            local res_s = cas.eval('solve(' .. table.concat(eqs, ' and ') .. ',{' .. table.concat(params, ',') .. '})')
+            local first = res_s and cas.split_top(res_s, 'or')[1]
+            for _, conj in ipairs(first and cas.split_top(first, 'and') or {}) do
+               local lhs, rhs = conj:match('^([%w_]+)%s*=%s*(.+)$')
+               if lhs then table.insert(assigns, { lhs, rhs }) end
+            end
+         end
+         if #assigns == #params then
+            local parts = {}
+            for _, a in ipairs(assigns) do
+               table.insert(parts, M(a[1] .. '=' .. a[2]))
+               R:result(cas.display_name(a[1]), a[2], { key = 'param_' .. cas.display_name(a[1]) })
+            end
+            local map = {}
+            for _, a in ipairs(assigns) do map[a[1]] = U.par(a[2]) end
+            fv = U.simp(cas.rename(fv, map, true))
+            R:step(U.IMPL .. ' ' .. table.concat(parts, ', ') .. ',  so ' .. (kind == 'v2(x)' and ('v' .. U.SQ) or own)
+                   .. ' = ' .. M(fv))
+         else
+            R:note('Could not find ' .. table.concat(names, ', ') .. ' from the conditions', 'warn')
+         end
+      else
+         R:note('Unknown constant ' .. table.concat(names, ', ') .. ': add a condition such as a=-3.5 when v=7', 'warn')
+      end
+   end
+   local given_shown = #params > 0
+   local function given(name)
+      if not given_shown then show_given(name) end
    end
 
    -- integrate: result(var) = c[b] + ∫_{c[a]}^{var} g d(var)
@@ -123,10 +265,10 @@ function S.solve(I, R)
       if not sols or #sols == 0 then return nil end
       if #sols == 1 or not (a and b) then return sols[1] end
       local bn = cas.n(b)
-      for _, s in ipairs(sols) do
-         local v = cas.n(cas.with(s, { { indep, a } }))
+      for _, sv in ipairs(sols) do
+         local v = cas.n(cas.with(sv, { { indep, a } }))
          if v and bn and math.abs(v - bn) < 1e-6 * (1 + math.abs(bn)) then
-            return s
+            return sv
          end
       end
       return sols[1]
@@ -135,6 +277,7 @@ function S.solve(I, R)
    -- x(t) from v(t) by integration
    local function x_from_vt()
       if K.vt and not K.xt then
+         R:tag('xt', { 'vt' })
          local r = integrate(K.vt, T, DT, 'x = x0 + ' .. U.INTG .. 'v dt', 'x(t)', 't', 'x')
          if r then res('xt', 'x(t)', r) end
       end
@@ -148,6 +291,7 @@ function S.solve(I, R)
          R:note('Need x at a known t to find t(x) and x(t)', 'warn')
          return
       end
+      R:tag('tx', { 'vx' })
       R:step('dt/dx = 1/v')
       local tx = U.simp(U.par(c.t) .. '+integral(1/(' .. dummy(K.vx, X, DX) .. '),' .. DX .. ',' .. c.x .. ',' .. X .. ')')
       R:step('t = ' .. M(c.t) .. ' + ' .. M('integral(1/(' .. dummy(K.vx, X, DX) .. '),' .. DX .. ',' .. c.x .. ',' .. X .. ')') .. ' = ' .. M(tx))
@@ -155,8 +299,10 @@ function S.solve(I, R)
       local sols = cas.solve(T .. '=' .. tx, X)
       local xt = pick(sols, T, c.t, c.x)
       if xt then
+         R:tag('xt', { 'tx' })
          R:step('Solve for x: x = ' .. M(xt))
          res('xt', 'x(t)', xt)
+         R:tag('vt', { 'xt' })
          K.vt = K.vt or U.simp('derivative(' .. xt .. ',' .. T .. ')')
          R:step('v = dx/dt = ' .. M(K.vt))
          R:result('v(t)', K.vt, { key = 'vt' })
@@ -166,6 +312,7 @@ function S.solve(I, R)
    -- v(x) from v²(x) with the sign from the known motion
    local function v_from_v2x()
       if not K.v2x or K.vx then return end
+      R:tag('vx', { 'v2x' })
       local sign = 1
       local c = find_cond('x', 'v')
       local reason = ''
@@ -189,51 +336,59 @@ function S.solve(I, R)
       local vx = U.simp((sign < 0 and U.NEG or '') .. root)
       R:step('v = ' .. (sign < 0 and '-' or '') .. M(root) .. (reason ~= '' and ('  (' .. reason .. ')') or '  (taking v > 0)'))
       res('vx', 'v(x)', vx)
+      K.vsign = sign
    end
 
    -- Derivations by type -------------------------------------------------------
    if kind == 'x(t)' then
-      show_given('x')
+      given('x')
       res('xt', 'x(t)', fv)
+      R:tag('vt', { 'xt' })
       local vt = U.simp('derivative(' .. fv .. ',' .. T .. ')')
       R:step('v = dx/dt = ' .. M(vt))
       res('vt', 'v(t)', vt)
+      R:tag('at', { 'vt' })
       local at = U.simp('derivative(' .. vt .. ',' .. T .. ')')
       R:step('a = dv/dt = ' .. M(at))
       res('at', 'a(t)', at)
    elseif kind == 'v(t)' then
-      show_given('v')
+      given('v')
       res('vt', 'v(t)', fv)
+      R:tag('at', { 'vt' })
       local at = U.simp('derivative(' .. fv .. ',' .. T .. ')')
       R:step('a = dv/dt = ' .. M(at))
       res('at', 'a(t)', at)
       x_from_vt()
    elseif kind == 'a(t)' then
-      show_given('a')
+      given('a')
       res('at', 'a(t)', fv)
+      R:tag('vt', { 'at' })
       local vt = integrate(fv, T, DT, 'v = v0 + ' .. U.INTG .. 'a dt', 'v(t)', 't', 'v')
       if vt then
          res('vt', 'v(t)', vt)
          x_from_vt()
       end
    elseif kind == 'v(x)' then
-      show_given('v')
+      given('v')
       res('vx', 'v(x)', fv)
+      R:tag('ax', { 'vx' })
       local ax = U.simp(U.par(fv) .. '*derivative(' .. fv .. ',' .. X .. ')')
       R:step('a = v' .. '\194\183' .. 'dv/dx = ' .. M(ax))
       res('ax', 'a(x)', ax)
       t_from_vx()
    elseif kind == 'v2(x)' then
-      show_given('v' .. U.SQ)
+      given('v' .. U.SQ)
       res('v2x', 'v' .. U.SQ .. '(x)', fv)
+      R:tag('ax', { 'v2x' })
       local ax = U.simp('derivative(' .. fv .. ',' .. X .. ')/2')
       R:step('a = d/dx(' .. M('1/2*v^2') .. ') = ' .. M(ax))
       res('ax', 'a(x)', ax)
       v_from_v2x()
       if K.vx then t_from_vx() end
    elseif kind == 'a(x)' then
-      show_given('a')
+      given('a')
       res('ax', 'a(x)', fv)
+      R:tag('v2x', { 'ax' })
       R:step('a = d/dx(' .. M('1/2*v^2') .. ')')
       local c = find_cond('x', 'v')
       if c then
@@ -250,11 +405,12 @@ function S.solve(I, R)
          R:note('Need v at a known x to find c', 'warn')
       end
    elseif kind == 'a(v)' then
-      show_given('a')
+      given('a')
       res('av', 'a(v)', fv)
       -- terminal (limiting) velocity: equilibrium approached from v0
       local roots = cas.solve(fv .. '=0', V)
       if roots and #roots > 0 then
+         R:tag('vterm', { 'av' })
          local c0 = find_cond('t', 'v') or find_cond('x', 'v')
          local vterm = roots[1]
          if c0 and #roots > 1 then
@@ -276,6 +432,7 @@ function S.solve(I, R)
       end
       local c = find_cond('t', 'v')
       if c then
+         R:tag('tv', { 'av' })
          R:step('dv/dt = a ' .. U.IMPL .. ' dt/dv = 1/a')
          local tv = U.simp(U.par(c.t) .. '+integral(1/(' .. dummy(fv, V, DV) .. '),' .. DV .. ',' .. c.v .. ',' .. V .. ')')
          R:step('t = ' .. M(c.t) .. ' + ' .. M('integral(1/(' .. dummy(fv, V, DV) .. '),' .. DV .. ',' .. c.v .. ',' .. V .. ')') .. ' = ' .. M(tv))
@@ -283,15 +440,19 @@ function S.solve(I, R)
          local sols = cas.solve(T .. '=' .. tv, V)
          local vt = pick(sols, T, c.t, c.v)
          if vt then
+            R:tag('vt', { 'tv' })
             R:step('Solve for v: v = ' .. M(vt))
             res('vt', 'v(t)', vt)
+            R:tag('at', { 'vt' })
             local at = U.simp(cas.rename(fv, { [V] = U.par(vt) }, true))
+            R:step('a = a(v(t)) = ' .. M(at))
             res('at', 'a(t)', at)
             x_from_vt()
          end
       end
       local cx = find_cond('x', 'v')
       if cx then
+         R:tag('xv', { 'av' })
          R:step('v' .. '\194\183' .. 'dv/dx = a ' .. U.IMPL .. ' dx/dv = v/a')
          local xv = U.simp(U.par(cx.x) .. '+integral(' .. DV .. '/(' .. dummy(fv, V, DV) .. '),' .. DV .. ',' .. cx.v .. ',' .. V .. ')')
          R:step('x = ' .. M(cx.x) .. ' + ' .. M('integral(' .. DV .. '/(' .. dummy(fv, V, DV) .. '),' .. DV .. ',' .. cx.v .. ',' .. V .. ')') .. ' = ' .. M(xv))
@@ -299,12 +460,152 @@ function S.solve(I, R)
          local sols = cas.solve(X .. '=' .. xv, V)
          local vx = pick(sols, X, cx.x, cx.v)
          if vx then
+            R:tag('vx', { 'xv' })
             R:step('Solve for v: v = ' .. M(vx))
             res('vx', 'v(x)', vx)
          end
       end
       if not c and not cx then
+         -- general solutions: the constant needs v at a known t or x
+         R:tag('tv', { 'av' })
+         local Ft = U.simp('integral(1/(' .. fv .. '),' .. V .. ')')
+         R:step('dt/dv = 1/a ' .. U.IMPL .. ' t = ' .. M('integral(1/(' .. fv .. '),' .. V .. ')') .. ' = ' .. M(Ft .. '+c'))
+         R:tag('xv', { 'av' })
+         local Fx = U.simp('integral(' .. V .. '/(' .. fv .. '),' .. V .. ')')
+         R:step('dx/dv = v/a ' .. U.IMPL .. ' x = ' .. M('integral(' .. V .. '/(' .. fv .. '),' .. V .. ')') .. ' = ' .. M(Fx .. '+c'))
          R:note('Enter v0 (and x0) to integrate', 'warn')
+      end
+   end
+   K.fv = fv
+
+   -- Domains -------------------------------------------------------------------
+   -- From the motion: start at the known state and move until v reaches a
+   -- terminal value or 0 (a(v)), a turning point (v² = 0) or a singularity.
+   local doms, dom_why = {}, {}
+   local state = find_cond('t', 'v') or find_cond('x', 'v') or find_cond('t', 'x') or conds[1]
+   local tstart = (state and state.t) or '0'
+   local function set_dom(key, d, why)
+      if K[key] and d then doms[key], dom_why[key] = d, why end
+   end
+   -- formulas in t: t ≥ t0, cut where the formula stops being defined
+   local function t_dom(e, tend, tend_inc)
+      local d = interval(tstart, true, T, tend, tend_inc)
+      local cd = e and cas.eval('domain(' .. e .. ',' .. T .. ')')
+      if cd and not cd:find('domain', 1, true) and not cd:find('@', 1, true) and cas.uses(cd, { T }) then
+         local both = cas.eval('solve(' .. d .. ' and ' .. U.par(cd) .. ',' .. T .. ')')
+         if both and not both:find('solve', 1, true) and both ~= 'false' and both ~= 'true' then d = both end
+      end
+      return d
+   end
+   local ok_dom = pcall(function()
+      if kind == 'a(v)' then
+         local c = find_cond('t', 'v') or find_cond('x', 'v')
+         local v0s = c and c.v
+         local v0n = v0s and cas.n(v0s)
+         local a0 = v0s and cas.n(cas.with(fv, { { V, v0s } }))
+         if v0n and a0 and a0 ~= 0 then
+            local dir = a0 > 0 and 1 or -1
+            local stop = nearest(barriers(fv, V, false), v0n, dir)
+            local vend = stop and stop.e
+            local vdom = dir < 0 and interval(vend, false, V, v0s, true) or interval(v0s, true, V, vend, false)
+            local why = 'a ' .. (dir < 0 and '< 0' or '> 0') .. ': v ' .. (dir < 0 and 'decreases' or 'increases')
+                        .. ' from ' .. M(v0s) .. (vend and (' towards ' .. M(vend)) or '')
+            set_dom('tv', vdom, why)
+            set_dom('xv', vdom, why)
+            if K.tv then
+               local tend, tn = limit_toward(K.tv, V, vend, dir)
+               if tn and math.abs(tn) == math.huge then tend = nil end
+               for _, k in ipairs({ 'vt', 'at', 'xt' }) do set_dom(k, t_dom(K[k], tend, false), why) end
+            end
+            if K.xv then
+               -- v(x) is single valued until the particle stops (v = 0)
+               -- (passing through v = 0 before the terminal value)
+               local vsn = stop and stop.n
+               local crosses = false
+               if v0n ~= 0 then
+                  if vsn then
+                     crosses = vsn ~= 0 and (vsn < 0) ~= (v0n < 0)
+                  else
+                     crosses = (dir < 0) == (v0n > 0)
+                  end
+               end
+               local x0s = (find_cond('x', 'v') or {}).x
+               local xend, xn
+               if crosses then
+                  xend = U.simp(cas.with(K.xv, { { V, '0' } }))
+                  xn = cas.n(xend)
+               else
+                  xend, xn = limit_toward(K.xv, V, vend, dir)
+               end
+               if xn and math.abs(xn) == math.huge then xend = nil end
+               local reached = crosses
+               local x0n = x0s and cas.n(x0s)
+               if x0s and x0n then
+                  local up = xend and (xn or 0) > x0n or (not xend and v0n > 0)
+                  set_dom('vx', up and interval(x0s, true, X, xend, reached) or interval(xend, reached, X, x0s, true), why)
+               end
+            end
+         end
+      elseif K.v2x or (kind == 'v(x)') then
+         local c = find_cond('x', 'v') or find_cond('t', 'x')
+         local x0s = c and c.x
+         local x0n = x0s and cas.n(x0s)
+         if x0n then
+            local g = K.v2x or K.vx
+            local list = barriers(g, X, K.v2x ~= nil)
+            local lo, hi = nearest(list, x0n, -1), nearest(list, x0n, 1)
+            -- starting at rest: only the side where v² > 0
+            local G = K.v2x and function(x) return cas.n(cas.with(K.v2x, { { X, cas.num(x) } })) end
+            if G and math.abs(G(x0n) or 1) < 1e-12 then
+               local h = 1e-6 * math.max(1, math.abs(x0n))
+               if (G(x0n + h) or -1) < 0 then hi = { e = x0s, closed = true } end
+               if (G(x0n - h) or -1) < 0 then lo = { e = x0s, closed = true } end
+            end
+            local why
+            if K.v2x then
+               set_dom('v2x', interval(lo and lo.e, lo and lo.closed, X, hi and hi.e, hi and hi.closed),
+                       'v' .. U.SQ .. ' ' .. U.GEQ .. ' 0')
+            end
+            -- moving away from x0 in the direction of v until the next barrier
+            local vdir = K.vsign
+            if not vdir and K.vx then
+               local vv = cas.n(cas.with(K.vx, { { X, x0s } }))
+               vdir = vv and (vv < 0 and -1 or 1)
+            end
+            if vdir then
+               local d
+               if vdir > 0 then
+                  d = interval(x0s, true, X, hi and hi.e, hi and hi.closed)
+               else
+                  d = interval(lo and lo.e, lo and lo.closed, X, x0s, true)
+               end
+               why = 'moving ' .. (vdir > 0 and 'right' or 'left') .. ' from x = ' .. M(x0s)
+               if kind ~= 'v(x)' then set_dom('vx', d, why) end
+               set_dom('tx', d, why)
+               if kind == 'v(x)' then set_dom('vx', d, why) set_dom('ax', d, why) end
+            end
+            for _, k in ipairs({ 'xt', 'vt' }) do set_dom(k, t_dom(K[k])) end
+         end
+      else
+         -- given or derived in t
+         for _, k in ipairs({ 'at', 'vt', 'xt' }) do set_dom(k, t_dom(K[k])) end
+      end
+   end)
+   if not ok_dom then doms = {} end
+   local dom_order = { 'xt', 'vt', 'at', 'tv', 'xv', 'v2x', 'vx', 'tx', 'ax' }
+   local any = false
+   for _, k in ipairs(dom_order) do if doms[k] then any = true end end
+   if any then
+      R:tag(nil)
+      R:section('Domains')
+      local labels = { xt = 'x(t)', vt = 'v(t)', at = 'a(t)', tv = 't(v)', xv = 'x(v)', vx = 'v(x)',
+                       v2x = 'v' .. U.SQ .. '(x)', tx = 't(x)', ax = 'a(x)' }
+      for _, k in ipairs(dom_order) do
+         if doms[k] then
+            R:tag(k)
+            R:step(labels[k] .. ':  ' .. M(doms[k]) .. (dom_why[k] and ('  (' .. dom_why[k] .. ')') or ''))
+            R:domain(k, doms[k])
+         end
       end
    end
 
@@ -317,6 +618,7 @@ function S.solve(I, R)
       else
          var = var:lower()
          local value = U.read(val).val
+         R:tag('q')
          R:section('When ' .. var .. ' = ' .. U.txt(value))
          local tmin = conds[1] and conds[1].t or '0'
          local function eval_at(e, v, at)
@@ -418,6 +720,12 @@ function S.solve(I, R)
                   R:result('x', xv, { key = 'q_x' })
                   done = true
                end
+               if var == 'v' and K.av then
+                  local av = eval_at(K.av, V, value)
+                  R:step('a = a(' .. M(value) .. ') ' .. U.eq(av))
+                  R:result('a', av, { key = 'q_a' })
+                  done = true
+               end
                if var == 'x' and (K.vx or K.v2x) then
                   if K.vx then
                      local vv = eval_at(K.vx, X, value)
@@ -451,8 +759,12 @@ function S.solve(I, R)
                if var == 'a' and K.av and not done then
                   local sols = cas.solve(K.av .. '=' .. value, V)
                   if sols and sols[1] then
-                     R:step('Solve ' .. M(K.av .. '=' .. value) .. ':  v ' .. U.eq(sols[1]))
-                     R:result('v', sols[1], { key = 'q_v' })
+                     local shown = {}
+                     for k, sv in ipairs(sols) do
+                        table.insert(shown, M(sv))
+                        R:result('v', sv, { key = k == 1 and 'q_v' or ('q_v' .. k) })
+                     end
+                     R:step('Solve ' .. M(K.av .. '=' .. value) .. ':  v = ' .. table.concat(shown, ' or '))
                      done = true
                   end
                end
@@ -475,6 +787,7 @@ function S.solve(I, R)
    -- Displacement and distance between t1 and t2 ---------------------------------
    local t1, t2 = U.read(I.t1), U.read(I.t2)
    if t1 and t2 then
+      R:tag('disp')
       R:section('From t = ' .. U.txt(t1.val) .. ' to t = ' .. U.txt(t2.val))
       if K.vt then
          local vd = dummy(K.vt, T, DT)

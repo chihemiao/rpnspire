@@ -175,6 +175,7 @@ function A.build()
    sheet.on_submit = function(_, row) A.safe(A.on_submit, row) end
    sheet.on_choice = function(_, row) A.safe(A.on_choice, row) end
    sheet.on_activate = function(_, row) A.safe(A.on_activate, row) end
+   sheet.on_detail = function(_, row) A.safe(A.show_detail, row) end
    sheet.on_toggle = function(_, row) A.safe(A.on_toggle, row) end
    sheet.on_escape_cb = function() A.safe(A.on_escape) end
    sheet.on_context = function(_, row) A.safe(A.on_context, row) end
@@ -215,11 +216,17 @@ local HINTS = {
    link = 'enter: open  ' .. sym.CDOT .. '  digits: quick open',
    math = 'left/right: scroll',
    graph = 'enter/click: full screen  ' .. sym.CDOT .. '  up/down: scroll',
+   formula = 'enter: working for this formula  ' .. sym.CDOT .. '  left/right: exact ' .. sym.DLIMP .. ' decimal',
+   detail = 'esc: back to the problem  ' .. sym.CDOT .. '  enter: exact ' .. sym.DLIMP .. ' decimal',
 }
 
 function A.update_hint(row)
    if A.screen == 'history' then
       A.hint.left = i18n.hint('history', 'enter: open  ' .. sym.CDOT .. '  type: filter  ' .. sym.CDOT .. '  del: delete  ' .. sym.CDOT .. '  esc: home')
+   elseif A.screen == 'detail' then
+      A.hint.left = i18n.hint('detail', HINTS.detail)
+   elseif row and row.kind == 'result' and row.detail then
+      A.hint.left = i18n.hint('formula', HINTS.formula)
    elseif row and HINTS[row.kind] then
       A.hint.left = i18n.hint(row.kind, HINTS[row.kind])
    else
@@ -283,6 +290,15 @@ function A.current()
    return A.history:get()
 end
 
+-- A result that is a formula (uses t, x, v, ...) rather than a number
+local function is_formula(e)
+   local _, ids = cas.identifiers(e or '')
+   for _, id in ipairs(ids) do
+      if id:match('^q[79]%a$') then return true end
+   end
+   return false
+end
+
 function A.build_problem_rows(p, R, I)
    local s = solvers.get(p.solver)
    local rows = {}
@@ -326,7 +342,9 @@ function A.build_problem_rows(p, R, I)
          seen[key] = (seen[key] or 0) + 1
          if seen[key] > 1 then key = key .. ':' .. seen[key] end
          table.insert(rows, { kind = 'result', key = key, label = r.label, exact = r.exact, pair = r.pair,
-                              mode = p.modes[key] or A.settings.mode, term = i18n.term(p.solver, r.key) })
+                              mode = p.modes[key] or A.settings.mode, term = i18n.term(p.solver, r.key),
+                              rkey = r.key, caption = r.domain and (T('domain') .. ': `' .. r.domain .. '`'),
+                              detail = is_formula(r.exact) and R:steps_for(r.key) ~= nil })
       end
    end
    if #R.steps > 0 then
@@ -344,16 +362,72 @@ function A.build_problem_rows(p, R, I)
    return rows
 end
 
+-- Solving is cached per problem. The key holds every input that changes the
+-- maths; inputs a solver lists in `view_fields` (graph window, show/hide
+-- options) only change the picture and are applied by `s.view` to a copy, so
+-- moving through fields or toggling an option does not solve again.
+local function solve_key(s, I)
+   local parts = { s.id, tostring(A.settings.dp) }
+   for _, f in ipairs(s.fields) do
+      if not (s.view_fields and s.view_fields[f.id]) then
+         table.insert(parts, f.id .. '=' .. tostring(I[f.id] or ''))
+      end
+   end
+   return table.concat(parts, '\1')
+end
+
+local function copy_report(R)
+   local C = report.new()
+   for k, v in pairs(R) do C[k] = v end
+   C.results, C.steps, C.notes = {}, {}, {}
+   for i, v in ipairs(R.results) do C.results[i] = v end
+   for i, v in ipairs(R.steps) do C.steps[i] = v end
+   for i, v in ipairs(R.notes) do C.notes[i] = v end
+   if R.graph then
+      local g = {}
+      for k, v in pairs(R.graph) do g[k] = v end
+      g._plot_cache = nil
+      C.graph = g
+   end
+   return C
+end
+
 function A.solve(p)
    local s = solvers.get(p.solver)
    local I = inputs_for(s, p)
-   local R = report.new()
    fmt.dp = A.settings.dp
-   local ok, err = pcall(s.solve, I, R)
-   if not ok then
-      R:note('Error: ' .. errmsg(err), 'error')
+   local key = solve_key(s, I)
+   local c = p._cache
+   if not (c and c.key == key) then
+      local R = report.new()
+      local ok, err = pcall(s.solve, I, R)
+      if not ok then
+         R:note('Error: ' .. errmsg(err), 'error')
+      end
+      c = { key = key, R = R }
+      p._cache = c
    end
+   local R = copy_report(c.R)
+   if s.view then pcall(s.view, I, R) end
    return R, I
+end
+
+-- Forget cached results (document functions such as f11 may have changed)
+function A.invalidate()
+   cas.clear_memo()
+   for _, p in ipairs(A.history and A.history.items or {}) do p._cache = nil end
+end
+
+-- True if a problem's inputs refer to the document (f11(t), stored values)
+function A.uses_document(p)
+   local s = solvers.get(p.solver)
+   local map = require('apps.vce.solvers.util').locals_map()
+   for _, f in ipairs(s and s.fields or {}) do
+      local v = f.kind ~= 'choice' and p.inputs[f.id]
+      local e = v and cas.input(v, map)
+      if e and not cas.pure(e) then return true end
+   end
+   return false
 end
 
 function A.refresh_problem(keep)
@@ -380,6 +454,7 @@ end
 function A.on_commit(row)
    if A.screen ~= 'problem' then return end
    local p = A.current()
+   if (p.inputs[row.id] or '') == (row.text or '') then return end
    p.inputs[row.id] = row.text
    A.refresh_problem(true)
 end
@@ -414,7 +489,7 @@ end
 
 function A.on_toggle(row)
    local p = A.current()
-   if A.screen == 'problem' and p and row.key then
+   if (A.screen == 'problem' or A.screen == 'detail') and p and row.key then
       p.modes = p.modes or {}
       p.modes[row.key] = row.mode
    end
@@ -447,7 +522,47 @@ function A.on_activate(row)
    end
 end
 
+-- Working for one formula only (enter on a formula result)
+function A.show_detail(row)
+   local R = A.last_report
+   local steps = R and R:steps_for(row.rkey)
+   if not steps then return end
+   A.screen = 'detail'
+   A.detail_key = row.key
+   local rows = {}
+   table.insert(rows, { kind = 'header', text = T('Working for') .. ' ' .. (row.label or '') })
+   table.insert(rows, { kind = 'result', key = row.key, label = row.label, exact = row.exact, pair = row.pair,
+                        mode = row.mode, term = row.term, rkey = row.rkey, caption = row.caption })
+   table.insert(rows, { kind = 'header', text = T('Working') })
+   local n = 0
+   for i, st in ipairs(steps) do
+      if st.section then
+         table.insert(rows, { kind = 'step', text = i18n.section(st.text), section = true, key = 'dstep' .. i })
+      else
+         n = n + 1
+         table.insert(rows, { kind = 'step', text = st.text, num = n, key = 'dstep' .. i })
+      end
+   end
+   A.sheet:set_rows(rows, true)
+   local p = A.current()
+   A.set_title(problem_title(p), T('esc: back'))
+   A.update_hint(A.sheet:selected())
+end
+
 function A.on_escape()
+   if A.screen == 'detail' then
+      -- back to the problem with the same formula selected
+      A.screen = 'problem'
+      A.refresh_problem(true)
+      for i, r in ipairs(A.sheet.rows) do
+         if r.key == A.detail_key then
+            A.sheet:select(i)
+            A.update_hint(r)
+            break
+         end
+      end
+      return
+   end
    if A.screen == 'home' then
       if A.host and A.close then A.close() end
       return
@@ -489,7 +604,7 @@ function A.on_shortcut(c)
          return true
       end
       return false
-   elseif A.screen == 'problem' then
+   elseif A.screen == 'problem' or A.screen == 'detail' then
       local map = {
          n = function() A.go(1) end,
          p = function() A.go(-1) end,
@@ -527,7 +642,22 @@ function A.set_all_modes(mode)
    A.settings.mode = mode
    local p = A.current()
    if p then p.modes = {} end
-   if A.screen == 'problem' then A.refresh_problem(true) end
+   if A.screen == 'problem' then
+      A.refresh_problem(true)
+   elseif A.screen == 'detail' then
+      A.refresh_detail()
+   end
+end
+
+-- Rebuild the formula working screen (after a settings change)
+function A.refresh_detail()
+   local cur = A.sheet.rows[2]
+   local key = cur and cur.key
+   A.screen = 'problem'
+   A.refresh_problem(true)
+   for _, r in ipairs(A.sheet.rows) do
+      if r.key == key and r.detail then return A.show_detail(r) end
+   end
 end
 
 -- Dialogs ---------------------------------------------------------------------------
@@ -752,6 +882,8 @@ end
 function A.redraw_current()
    if A.screen == 'problem' then
       A.refresh_problem(true)
+   elseif A.screen == 'detail' then
+      A.refresh_detail()
    elseif A.screen == 'home' then
       A.show_home()
    else
@@ -892,6 +1024,7 @@ end
 --   { push = function(value) ... end }  -- send a value to the RPN stack
 function A.open(host)
    cas.init()
+   A.invalidate()
    i18n.lang = A.settings.lang or i18n.default
    mb.rename = cas.display_name
    fmt.dp = A.settings.dp

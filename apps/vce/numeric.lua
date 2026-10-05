@@ -102,6 +102,28 @@ FUNCS.log = function(args)
    end
 end
 
+local function int_part(x) return x >= 0 and floor(x) or -floor(-x) end
+FUNCS.ipart = f1(int_part)
+FUNCS.fpart = f1(function(x) return x - int_part(x) end)
+
+FUNCS.mod = function(args)
+   local a, b = args[1], args[2]
+   return function(env)
+      local x, m = num(a(env)), num(b(env))
+      if m == 0 then return x end
+      return x - m * floor(x / m)
+   end
+end
+
+FUNCS.round = function(args)
+   local a, b = args[1], args[2]
+   return function(env)
+      local p = 10 ^ (b and num(b(env)) or 12)
+      local x = num(a(env)) * p
+      return (x >= 0 and floor(x + 0.5) or -floor(-x + 0.5)) / p
+   end
+end
+
 FUNCS.root = function(args)
    local a, b = args[1], args[2]
    return function(env)

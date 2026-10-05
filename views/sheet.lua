@@ -44,6 +44,7 @@ local C = {
    header = 0x404040,
    label = 0x2A4E7A,
    hint = 0x9A9A9A,
+   caption = 0x46698C,
    text = 0x000000,
    caret = 0xE00000,
    info = 0x5A5A5A,
@@ -457,6 +458,11 @@ function ui.sheet:layout_row(gc, r, W)
          L.inline = false
          L.h = label.h + vb.h + 3 * PAD
       end
+      -- optional caption under the value (e.g. the domain of a formula)
+      if r.caption then
+         L.cap = stack(seg_lines(gc, report.segments(r.caption), small, W - 2 * PAD), 0)
+         L.h = L.h + L.cap.h + 1
+      end
    elseif k == 'step' then
       local numw = r.num and mb.text(r.num .. '.', small, gc).w + 4 or 0
       L.numw = numw
@@ -616,13 +622,18 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
       end
    elseif k == 'result' then
       local lx = x + PAD
+      local caph = L.cap and (L.cap.h + 1) or 0
+      if L.cap then
+         set_color(g, C.caption)
+         draw_stack(L.cap, g, lx, y + L.h - PAD - L.cap.h)
+      end
       if L.term then
          set_color(g, C.hint)
          local ty
          if L.term_inline then
-            ty = y + floor((L.h - L.term.h) / 2)
+            ty = y + floor((L.h - caph - L.term.h) / 2)
          elseif L.inline then
-            ty = y + L.h - PAD - L.term.h
+            ty = y + L.h - caph - PAD - L.term.h
          else
             ty = y + PAD
          end
@@ -630,7 +641,7 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
       end
       if L.inline then
          local ly = y + PAD
-         local h = L.h - 2 * PAD - ((L.term and not L.term_inline) and L.term.h or 0)
+         local h = L.h - caph - 2 * PAD - ((L.term and not L.term_inline) and L.term.h or 0)
          set_color(g, C.label)
          draw_stack(L.label, g, lx, ly + floor((h - L.label.h) / 2))
          set_color(g, r.mode == 'approx' and C.approx or C.text)
@@ -681,7 +692,7 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
       end
    elseif k == 'graph' then
       local gr = ui.rect(x + PAD, y + PAD, W - 2 * PAD - 3, L.h - 2 * PAD)
-      local ok = pcall(plot.draw, g, gr, r.spec, { small = true, labels = r.labels })
+      local ok = pcall(plot.draw, g, gr, r.spec, { small = true, labels = r.labels, clip = self:frame() })
       g:clipRect('reset')
       local f = self:frame()
       g:clipRect('set', f.x, f.y, f.width + 1, f.height + 1)
@@ -837,7 +848,13 @@ function ui.sheet:on_enter_key()
    elseif r.kind == 'choice' then
       cycle(self, r, 1)
    elseif r.kind == 'result' then
-      self:toggle(r)
+      -- formulas with their own working open it; other results switch
+      -- exact <-> decimal (left/right still switch formulas)
+      if r.detail and self.on_detail then
+         self:on_detail(r)
+      else
+         self:toggle(r)
+      end
    elseif r.kind == 'link' or r.kind == 'graph' then
       if self.on_activate then self:on_activate(r) end
    end

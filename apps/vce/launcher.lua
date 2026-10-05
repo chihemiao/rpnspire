@@ -2,7 +2,7 @@
 local apps = require 'apps.apps'
 local fmt = require 'apps.vce.fmt'
 
-apps.add('VCE Specialist toolkit', 'probability, kinematics, SUVAT', function(stack)
+apps.add('VCE Specialist toolkit', 'graphs, calculus, kinematics, probability', function(stack)
    local app = require 'apps.vce.app'
    app.open({
       push = function(value)

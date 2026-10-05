@@ -41,11 +41,49 @@ function cas.init()
    end
 end
 
--- Evaluate expression; returns result string or nil, error
----@param expr string
----@return string|nil, any
-function cas.eval(expr)
-   if cas.log then table.insert(cas.log, expr) end
+-- Memo of CAS results. Only expressions that cannot depend on the document
+-- are kept: built-in functions, numbers and the toolkit's own local symbols
+-- (q9x, q7x, q8t). Anything else (f11(x), stored variables, @n1, c1) is
+-- evaluated every time. cas.clear_memo() drops everything (on page activate).
+local BUILTIN = {}
+for name in ([[approx exact derivative integral nint solve nsolve csolve zeros limit getdenom getnum
+   polyquotient polyremainder polydegree expand factor comdenom propfrac desolve seq sum piecewise when
+   abs sqrt ln log exp sin cos tan sec csc cot arcsin arccos arctan sinh cosh tanh normcdf normpdf invnorm
+   binomcdf binompdf ncr npr floor ceiling round ipart fpart mod max min sign root fmax fmin]]):gmatch('%S+') do
+   BUILTIN[name] = true
+end
+local INV = sym.POWN1
+for _, f in ipairs({ 'sin', 'cos', 'tan' }) do BUILTIN[f .. INV] = true end
+local WORDS = { ['and'] = true, ['or'] = true, ['not'] = true, ['xor'] = true, ['true'] = true,
+                ['false'] = true, undef = true }
+
+local memo, memo_n, memo_backend = {}, 0, nil
+local MEMO_MAX = 300
+
+function cas.clear_memo()
+   memo, memo_n = {}, 0
+end
+
+local scan -- defined below
+
+local function pure(expr)
+   local ok = true
+   scan(expr, function(kind, text, nextc)
+      if ok and kind == 'id' then
+         if nextc == '(' then
+            if not BUILTIN[text:lower()] then ok = false end
+         elseif not (WORDS[text] or text:match('^q[789]%a$')) then
+            ok = false
+         end
+      elseif ok and kind == 'other' and text == '@' then
+         ok = false
+      end
+   end)
+   return ok
+end
+cas.pure = function(expr) return pure(expr) end
+
+local function raw_eval(expr)
    local ok, res, err = pcall(backend, expr)
    if not ok then
       return nil, res
@@ -54,6 +92,26 @@ function cas.eval(expr)
       return nil, err or 'error'
    end
    return res
+end
+
+-- Evaluate expression; returns result string or nil, error
+---@param expr string
+---@return string|nil, any
+function cas.eval(expr)
+   if cas.log then table.insert(cas.log, expr) end
+   if memo_backend ~= (cas.backend or false) then
+      cas.clear_memo()
+      memo_backend = cas.backend or false
+   end
+   local hit = memo[expr]
+   if hit then return hit[1], hit[2] end
+   local res, err = raw_eval(expr)
+   if pure(expr) then
+      if memo_n >= MEMO_MAX then cas.clear_memo() end
+      memo[expr] = { res, err }
+      memo_n = memo_n + 1
+   end
+   return res, err
 end
 
 -- Evaluate or raise an error table
@@ -255,7 +313,7 @@ end
 -- Iterate over a string and call fn(kind, text, next_char) for each chunk.
 -- Kinds: 'id' (ASCII identifier [A-Za-z][A-Za-z0-9_]*), 'num' (number
 -- literal), 'sym' (one UTF-8 multibyte character), 'other' (ASCII char).
-local function scan(str, fn)
+function scan(str, fn)
    local i, n = 1, #str
    while i <= n do
       local c = str:sub(i, i)

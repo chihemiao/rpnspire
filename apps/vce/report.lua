@@ -18,7 +18,7 @@ end
 -- Add a result.
 ---@param label string  Label text (may contain `math`)
 ---@param value string  CAS result string (exact where possible)
----@param opts? table   { key = 'mu', unit = 'm/s' }
+---@param opts? table   { key = 'mu', unit = 'm/s', domain = '0≤q9t' }
 function mt:result(label, value, opts)
    opts = opts or {}
    local r = {
@@ -26,6 +26,7 @@ function mt:result(label, value, opts)
       exact = value,
       key = opts.key,
       unit = opts.unit,
+      domain = opts.domain,
    }
    table.insert(self.results, r)
    if opts.key then
@@ -48,17 +49,51 @@ function mt:pair_num(key)
    return cas.n(r.pair[1]), cas.n(r.pair[2])
 end
 
+-- Group the following steps under the result `key` they derive; `deps` are
+-- the keys whose working it builds on. steps_for(key) then gives the
+-- working of one result on its own (e.g. only how x(v) was found).
+function mt:tag(key, deps)
+   self.cur_tag = key
+   if key then
+      self.deps = self.deps or {}
+      self.deps[key] = deps or self.deps[key] or {}
+   end
+end
+
+-- Steps for one result and everything it depends on, in order (or nil)
+function mt:steps_for(key)
+   if not (key and self.deps and self.deps[key]) then return nil end
+   local want = {}
+   local function add(k)
+      if want[k] then return end
+      want[k] = true
+      for _, d in ipairs(self.deps[k] or {}) do add(d) end
+   end
+   add(key)
+   local out = {}
+   for _, st in ipairs(self.steps) do
+      if st.tag and want[st.tag] then table.insert(out, st) end
+   end
+   return #out > 0 and out or nil
+end
+
+-- Set the domain of a keyed result (shown under its value)
+function mt:domain(key, dom)
+   local r = self.by_key[key]
+   if r then r.domain = dom end
+end
+
 -- Add a step of working (one line; text with `math` segments)
 function mt:step(text, ...)
    if select('#', ...) > 0 then
       text = string.format(text, ...)
    end
-   table.insert(self.steps, { text = text })
+   table.insert(self.steps, { text = text, tag = self.cur_tag })
 end
 
 -- Add a sub-heading inside the working
 function mt:section(title)
-   table.insert(self.steps, { text = title, section = true })
+   table.insert(self.steps, { text = title, section = true, tag = self.cur_tag })
 end
 
 -- Add a note. kind: 'info' | 'warn' | 'error'

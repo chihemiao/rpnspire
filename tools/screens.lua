@@ -258,4 +258,15 @@ key('escape')
 app.show_home()
 for _ = 1, 3 do key('down') end
 shot('20_home_calculus')
+
+-- Kinematics: unknown constant, formula working and domain
+app.new_problem('kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7' })
+for i, r in ipairs(app.sheet.rows) do
+   if r.rkey == 'xv' then app.sheet:select(i) end
+end
+shot('21_kin_formula')
+key('enter_key')
+shot('22_kin_formula_working')
+key('escape')
+key('escape')
 print('ok')

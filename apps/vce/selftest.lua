@@ -29,6 +29,8 @@ T.cases = {
    { 'kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', x0 = '0', find = 'v=5' }, 'q_x', 10 },
    { 'kinematics', { type = 'a(x)', f = '-4x', x0 = '0', v0 = '4', find = 'x=1' }, 'q_v', 3.4641016 },
    { 'kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', find = 't=1' }, 'q_x', 3.1945280 },
+   { 'kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7', find = 'v=5' }, 'param_k', 0.1 },
+   { 'kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7', find = 'v=5' }, 'q_x', 6.9314718 },
    -- key.x / key.y: coordinate of a point result; equations use their right side
    { 'graph', { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8' }, 'va', 2 },
    { 'graph', { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8' }, 'max.x', 0.2679492 },

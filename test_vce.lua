@@ -88,6 +88,8 @@ local function run(solver_id, inputs)
    return R
 end
 
+local function U_neg(x) return sym.NEGATE .. x end
+
 local function near(a, b, tol, msg)
    tol = tol or 1e-4
    Test.assert(a ~= nil, (msg or '') .. ': value is nil (expected ' .. tostring(b) .. ')')
@@ -124,6 +126,25 @@ function test.cas_input()
    Test.assert(cas.input('sqrt(4)') == sym.ROOT .. '(4)')
    Test.assert(cas.input('f11(t)', { t = 'q9t' }) == 'f11(q9t)')
    Test.assert(cas.input('  ') == nil)
+end
+
+function test.cas_memo()
+   local calls = 0
+   local orig = cas.backend
+   cas.backend = function(e) calls = calls + 1 return orig(e) end
+   Test.assert(cas.pure('derivative(q9x^2,q9x)|q9x>0 and q9x<1'), 'built-ins and local symbols are pure')
+   Test.assert(not cas.pure('f11(q9x)'), 'document function')
+   Test.assert(not cas.pure('q9x+mass'), 'document variable')
+   cas.eval('2+3')
+   cas.eval('2+3')
+   Test.assert(calls == 1, 'pure expression evaluated once')
+   cas.eval('mass+1')
+   cas.eval('mass+1')
+   Test.assert(calls == 3, 'document expressions always evaluated')
+   cas.clear_memo()
+   cas.eval('2+3')
+   Test.assert(calls == 4, 'memo cleared')
+   cas.backend = orig
 end
 
 function test.cas_parsing()
@@ -516,6 +537,27 @@ function test.plot_draw()
    Test.assert(plot.nice_step(7.3) > 0, 'nice step')
 end
 
+function test.plot_cache()
+   local plot = require 'ui.plot'
+   local evals = 0
+   local g = setmetatable({}, { __index = function(_, k)
+      if k == 'getStringWidth' then return function(_, s) return 6 * #(s or '') end end
+      if k == 'getStringHeight' then return function() return 12 end end
+      return function() end
+   end })
+   local spec = { xmin = -3, xmax = 3, curves = { { fn = function(x) evals = evals + 1 return x * x end } },
+                  points = { { x = 0, y = 0, kind = 'min', label = 'min (0, 0)' } } }
+   local r = { x = 10, y = 20, width = 200, height = 120 }
+   plot.draw(g, r, spec, { labels = true })
+   local first = evals
+   Test.assert(first > 100, 'curve sampled')
+   plot.draw(g, { x = 10, y = 60, width = 200, height = 120 }, spec, { labels = true, cursor = { x = 1, y = 1 } })
+   Test.assert(evals == first, 'repaint (moved, with cursor) replays without sampling')
+   spec.xmin = -4
+   plot.draw(g, r, spec, { labels = true })
+   Test.assert(evals > first, 'new window samples again')
+end
+
 -- Function graph analysis ---------------------------------------------------------------
 
 local function all_pairs(R, key)
@@ -697,6 +739,57 @@ function test.demodels_euler_related()
    near(rnum(R, 'rate'), 1000 * math.pi, 1e-3, 'dV/dt from dr/dt')
 end
 
+function test.kin_formula_working_and_domain()
+   local R = run('kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', x0 = '0', find = 'v=5' })
+   local st = R:steps_for('xv')
+   Test.assert(st and #st >= 3, 'x(v) has its own working')
+   local text = {}
+   for _, s in ipairs(st) do table.insert(text, report.plain(s.text)) end
+   text = table.concat(text, ' | ')
+   Test.assert(text:find('Given a', 1, true) and text:find('dx/dv = v/a', 1, true), 'given and x(v) steps: ' .. text)
+   Test.assert(not text:find('dt/dv', 1, true), 'no t(v) steps in x(v) working')
+   Test.assert(R.by_key.xv.domain == '0<q9v' .. sym.LEQ .. '10', 'x(v) domain: ' .. tostring(R.by_key.xv.domain))
+   Test.assert(R.by_key.tv.domain == R.by_key.xv.domain, 't(v) domain')
+   near(rnum(R, 'q_a'), -2.5, 1e-9, 'a at v = 5')
+   Test.assert(R:steps_for('q_x') == nil, 'numeric answers have no separate working')
+
+   R = run('kinematics', { type = 'a(x)', f = '-4x', x0 = '0', v0 = '4' })
+   Test.assert(R.by_key.v2x.domain == U_neg('2') .. sym.LEQ .. 'q9x' .. sym.LEQ .. '2', 'v^2 domain: ' .. tostring(R.by_key.v2x.domain))
+   Test.assert(R.by_key.vx.domain == '0' .. sym.LEQ .. 'q9x' .. sym.LEQ .. '2', 'v(x) domain: ' .. tostring(R.by_key.vx.domain))
+
+   R = run('kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2' })
+   Test.assert(R.by_key.xt.domain == 'q9t' .. sym.GEQ .. '0', 'x(t) domain')
+end
+
+function test.kin_unknown_constant()
+   -- a = -k v^2 with a = -4.9 when v = 7 (k = 0.1), v0 = 10
+   local R = run('kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7', find = 'v=5' })
+   no_errors(R)
+   near(rnum(R, 'param_k'), 0.1, 1e-12, 'k')
+   near(rnum(R, 'q_t'), 1, 1e-6, 't when v = 5')
+   near(rnum(R, 'q_x'), 10 * math.log(2), 1e-6, 'x when v = 5')
+   -- same with function notation, and no initial state at all
+   R = run('kinematics', { type = 'a(v)', f = '-k*v^2', c2 = 'a(7)=-4.9', find = 'a=-0.4' })
+   near(rnum(R, 'param_k'), 0.1, 1e-12, 'k from a(7)')
+   local vs = {}
+   for _, r in ipairs(R.results) do
+      if r.key and r.key:find('^q_v') then table.insert(vs, math.abs(cas.n(r.exact))) end
+   end
+   Test.assert(#vs >= 1 and math.abs(vs[1] - 2) < 1e-6, 'v when a = -0.4')
+   local general = false
+   for _, st in ipairs(R.steps) do
+      if report.plain(st.text):find('+c', 1, true) then general = true end
+   end
+   Test.assert(general, 'general solution with +c without an initial state')
+   -- missing condition
+   R = run('kinematics', { type = 'a(v)', f = '-k*v', v0 = '10' })
+   local warned = false
+   for _, n in ipairs(R.notes) do
+      if n.text:find('Unknown constant k', 1, true) then warned = true end
+   end
+   Test.assert(warned, 'asks for a condition')
+end
+
 -- Self-test cases (same as on the calculator) ------------------------------------------
 
 function test.selftest_cases()
@@ -796,7 +889,17 @@ function test.ui_smoke()
       -- walk through all rows and toggle results
       for _ = 1, 60 do
          local row = app.sheet:selected()
-         if row and row.kind == 'result' then key('enter_key') key('right') key('left') end
+         if row and row.kind == 'result' then
+            key('enter_key')
+            if app.screen == 'detail' then
+               -- formula: its own working; esc returns to the same row
+               Test.assert(paint_all() > 0, s.id .. ' formula working paints')
+               key('down') key('escape')
+               Test.assert(app.screen == 'problem' and app.sheet:selected().key == row.key,
+                           s.id .. ' back from formula working')
+            end
+            key('right') key('left')
+         end
          key('down')
       end
       paint_all()
@@ -939,6 +1042,78 @@ function test.ui_graph_view()
    end
    app.set_lang('en')
    Test.assert(i18n.lang == 'en')
+end
+
+function test.ui_solve_cache()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   local function key(name, ...) ui.on_event(name, ...) end
+   local calls = 0
+   local orig = cas.backend
+   cas.backend = function(e) calls = calls + 1 return orig(e) end
+   math.evalStr = cas.backend
+   app.open(nil)
+   app.new_problem('graph', { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8' })
+   Test.assert(calls > 5, 'first solve uses the CAS')
+   -- enter through unchanged fields: no new solve
+   calls = 0
+   app.sheet:select_first()
+   for _ = 1, 4 do key('enter_key') end
+   Test.assert(calls == 0, 'unchanged fields do not solve again (' .. calls .. ' CAS calls)')
+   -- a view option only changes the picture
+   local row
+   for i, r in ipairs(app.sheet.rows) do
+      if r.id == 'asym' then app.sheet:select(i) row = r end
+   end
+   key('right')
+   Test.assert(calls == 0, 'show/hide option does not solve again')
+   local g
+   for _, r in ipairs(app.sheet.rows) do if r.kind == 'graph' then g = r end end
+   Test.assert(g and g.spec.hide.asym, 'option applied to the graph')
+   Test.assert(row and app.current()._cache, 'cached')
+   -- changing the window solves again
+   app.current().inputs.xmax = '9'
+   app.refresh_problem(true)
+   Test.assert(calls > 0, 'new window solves again')
+   cas.backend = orig
+   math.evalStr = orig
+end
+
+function test.ui_formula_working()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   local function key(name, ...) ui.on_event(name, ...) end
+   app.open(nil)
+   app.new_problem('kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', x0 = '0' })
+   local function count(kind)
+      local n = 0
+      for _, r in ipairs(app.sheet.rows) do if r.kind == kind then n = n + 1 end end
+      return n
+   end
+   local all_steps = count('step')
+   local idx, row
+   for i, r in ipairs(app.sheet.rows) do
+      if r.kind == 'result' and r.rkey == 'xv' then idx, row = i, r end
+   end
+   Test.assert(row and row.detail, 'x(v) is a formula with its own working')
+   Test.assert(row.caption and row.caption:find('q9v', 1, true), 'domain shown under x(v)')
+   local vt
+   for _, r in ipairs(app.sheet.rows) do if r.rkey == 'vterm' then vt = r end end
+   Test.assert(vt and not vt.detail, 'a number keeps enter = exact/decimal')
+   app.sheet:select(idx)
+   Test.assert(app.hint.left:find('working', 1, true), 'hint explains enter')
+   key('enter_key')
+   Test.assert(app.screen == 'detail', 'enter opens the working')
+   Test.assert(count('step') < all_steps and count('step') >= 3, 'only the steps for x(v)')
+   Test.assert(app.sheet:selected().rkey == 'xv', 'formula selected')
+   local mode = app.sheet:selected().mode
+   key('enter_key')
+   Test.assert(app.sheet:selected().mode ~= mode, 'enter switches exact/decimal here')
+   Test.assert(paint_all() > 0, 'paints')
+   key('escape')
+   Test.assert(app.screen == 'problem' and app.sheet:selected().rkey == 'xv', 'back on x(v)')
+   Test.assert(app.sheet:selected().mode ~= mode, 'mode kept')
+   app.settings.mode = 'exact'
 end
 
 -- Bilingual (中英) mode ------------------------------------------------------------------

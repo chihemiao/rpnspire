@@ -23,6 +23,7 @@ local mb = require 'ui.mathbox'
 local P = {}
 
 local floor, max, min, abs = math.floor, math.max, math.min, math.abs
+local unpack = unpack or table.unpack
 
 P.colors = {
    bg = 0xFFFFFF,
@@ -260,18 +261,13 @@ function P.merge_points(points, hide)
    return out
 end
 
--- Draw the plot in rect r (ui.rect-like {x, y, width, height})
---   opts: labels (bool), small (bool, mini graph), cursor = {x, y}, hide = {asym=true,...}
-function P.draw(g, r, spec, opts)
-   opts = opts or {}
+-- Everything except the trace cursor: sampled once, then replayed (P.draw)
+local function draw_body(g, r, spec, opts, hide)
    local C = P.colors
-   P.auto_range(spec)
    local px, py = mapper(spec, r)
-   local hide = opts.hide or spec.hide or {}
 
    g:setColorRGB(C.bg)
    g:fillRect(r.x, r.y, r.width, r.height)
-   g:clipRect('set', r.x, r.y, r.width + 1, r.height + 1)
 
    -- grid and ticks
    local tick_size = 7
@@ -516,28 +512,125 @@ function P.draw(g, r, spec, opts)
                end
                if not best_score or score < best_score then best, best_score = c, score end
             end
-            local lx, ly = floor(best[1]), floor(best[2])
-            g:setColorRGB(C.bg)
-            g:fillRect(lx - 1, ly, w + 2, th)
-            g:setColorRGB(C.label)
-            g:drawString(label, lx, ly, 'top')
-            table.insert(placed, { lx, ly, w })
+            -- in the small graph a label that would cover another is left out
+            -- (the marker stays; the full screen view has room for it)
+            if not (opts.small and best_score >= 500) then
+               local lx, ly = floor(best[1]), floor(best[2])
+               g:setColorRGB(C.bg)
+               g:fillRect(lx - 1, ly, w + 2, th)
+               g:setColorRGB(C.label)
+               g:drawString(label, lx, ly, 'top')
+               table.insert(placed, { lx, ly, w })
+            end
          end
       end
    end
 
-   -- trace cursor
-   if opts.cursor and opts.cursor.x and opts.cursor.y then
-      local qx, qy = px(opts.cursor.x), py(opts.cursor.y)
-      g:setColorRGB(C.cursor)
-      dashed(g, qx, r.y, qx, r.y + r.height, 1, 3)
-      dashed(g, r.x, qy, r.x + r.width, qy, 1, 3)
-      disc(g, qx, qy, 3, nil, C.cursor)
-   end
-
-   g:clipRect('reset')
    g:setColorRGB(C.frame)
    g:drawRect(r.x, r.y, r.width, r.height)
+end
+
+-- Recording graphics context: forwards every call to the real one and keeps
+-- the drawing calls (coordinates relative to the plot origin) for replay.
+-- For each drawing method: positions of its x and y arguments.
+local COORDS = {
+   drawLine = { 1, 2, 3, 4 }, fillRect = { 1, 2 }, drawRect = { 1, 2 },
+   fillArc = { 1, 2 }, drawArc = { 1, 2 }, drawString = { 2, 3 },
+   setColorRGB = {}, setFont = {}, setPen = {},
+}
+
+local function recorder(g, ops, ox, oy)
+   return setmetatable({}, { __index = function(_, m)
+      local pos = COORDS[m]
+      if not pos then
+         return function(_, ...) return g[m](g, ...) end
+      end
+      return function(_, ...)
+         local res = g[m](g, ...)
+         local op = { m, ... }
+         op.n = select('#', ...)
+         for k, i in ipairs(pos) do
+            if type(op[i + 1]) == 'number' then
+               op[i + 1] = op[i + 1] - ((k % 2 == 1) and ox or oy)
+            end
+         end
+         ops[#ops + 1] = op
+         return res
+      end
+   end })
+end
+
+local function replay(g, ops, ox, oy)
+   local args = {}
+   for _, op in ipairs(ops) do
+      local m = op[1]
+      local pos = COORDS[m]
+      for i = 1, op.n do args[i] = op[i + 1] end
+      for k, i in ipairs(pos) do
+         if type(args[i]) == 'number' then
+            args[i] = args[i] + ((k % 2 == 1) and ox or oy)
+         end
+      end
+      g[m](g, unpack(args, 1, op.n))
+   end
+end
+
+local function hide_key(hide)
+   local keys = {}
+   for k, v in pairs(hide) do
+      if v then table.insert(keys, tostring(k)) end
+   end
+   table.sort(keys)
+   return table.concat(keys, '+')
+end
+
+-- Draw the plot in rect r (ui.rect-like {x, y, width, height})
+--   opts: labels (bool), small (bool, mini graph), cursor = {x, y},
+--         hide = {asym=true,...}, clip = rect to stay inside (e.g. a scrolled sheet)
+-- The plot (curve samples, label placement, ...) is computed once per window
+-- and size and kept in the spec; later paints replay it, so moving the trace
+-- cursor or scrolling does not evaluate the functions again.
+function P.draw(g, r, spec, opts)
+   opts = opts or {}
+   P.auto_range(spec)
+   local hide = opts.hide or spec.hide or {}
+
+   local cx, cy, cw, ch = r.x, r.y, r.width + 1, r.height + 1
+   if opts.clip then
+      local c = opts.clip
+      local x2, y2 = min(cx + cw, c.x + c.width), min(cy + ch, c.y + c.height)
+      cx, cy = max(cx, c.x), max(cy, c.y)
+      cw, ch = max(0, x2 - cx), max(0, y2 - cy)
+   end
+   g:clipRect('set', cx, cy, cw, ch)
+
+   local key = table.concat({ r.width, r.height, spec.xmin, spec.xmax, spec.ymin, spec.ymax,
+                              opts.labels and 1 or 0, opts.small and 1 or 0, hide_key(hide) }, ',')
+   local cache = spec._plot_cache
+   if not cache or (cache.n or 0) >= 3 and not cache[key] then
+      cache = { n = 0 }
+      spec._plot_cache = cache
+   end
+   local ops = cache[key]
+   if ops then
+      replay(g, ops, r.x, r.y)
+   else
+      ops = {}
+      draw_body(recorder(g, ops, r.x, r.y), r, spec, opts, hide)
+      cache[key] = ops
+      cache.n = cache.n + 1
+   end
+
+   -- trace cursor
+   if opts.cursor and opts.cursor.x and opts.cursor.y then
+      local px, py = mapper(spec, r)
+      local qx, qy = px(opts.cursor.x), py(opts.cursor.y)
+      g:setColorRGB(P.colors.cursor)
+      dashed(g, qx, r.y, qx, r.y + r.height, 1, 3)
+      dashed(g, r.x, qy, r.x + r.width, qy, 1, 3)
+      disc(g, qx, qy, 3, nil, P.colors.cursor)
+   end
+   g:clipRect('reset')
 end
 
 return P

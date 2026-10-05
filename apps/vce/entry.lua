@@ -48,6 +48,10 @@ return function(default_lang)
 
    function on.activate()
       app.register_menu()
+      -- functions on other pages may have changed while away
+      app.invalidate()
+      local p = started and app.screen == 'problem' and app.current()
+      if p and app.uses_document(p) then app.refresh_problem(true) end
    end
 
    function on.resize(w, h)

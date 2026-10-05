@@ -639,6 +639,22 @@ funcs['limit'] = function(args, env)
       -- assume f ~ L + a/x
       return f2 + (f2 - f1) * x1 / (x2 - x1)
    end
+   local dir = args[4] and num(eval(args[4], env)) or 0
+   if dir ~= 0 then
+      -- one-sided: values at shrinking offsets; growing without bound -> ±∞
+      local s = dir > 0 and 1 or -1
+      local ok1, a = pcall(f, p + s * 1e-6)
+      local ok2, b = pcall(f, p + s * 1e-9)
+      if not (ok1 and ok2) then error('undef limit') end
+      if math.abs(b) > 1e4 and math.abs(b) > 10 * math.abs(a) then return b > 0 and math.huge or -math.huge end
+      if math.abs(b) > 1e6 then return b > 0 and math.huge or -math.huge end
+      -- logarithmic growth: keeps increasing by steps
+      local ok3, c = pcall(f, p + s * 1e-12)
+      if ok3 and math.abs(c - b) > 0.5 * math.abs(b - a) and math.abs(c - b) > 1 then
+         return c > 0 and math.huge or -math.huge
+      end
+      return b
+   end
    local a, b = f(p - 1e-7), f(p + 1e-7)
    if math.abs(a - b) > 1e-4 * (1 + math.abs(a)) then error('undef limit') end
    return (a + b) / 2

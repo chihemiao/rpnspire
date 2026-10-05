@@ -58,10 +58,11 @@ local function snap_list(list, xmin, xmax)
    return out
 end
 
+-- Returns the solutions and whether the CAS could solve (and we could read) it
 local function cas_zeros(expr, xmin, xmax, cons)
-   if not expr then return {} end
+   if not expr then return {}, false end
    local sols = cas.solve(expr .. '=0', X, cons)
-   return snap_list(U.expand_solutions(sols, xmin, xmax, 30), xmin, xmax)
+   return snap_list(U.expand_solutions(sols, xmin, xmax, 30), xmin, xmax), sols ~= nil
 end
 
 -- Is a CAS result usable (evaluated, no leftover function calls)?
@@ -94,8 +95,6 @@ function S.solve(I, R)
       R:note('x from must be less than x to', 'error')
       return
    end
-   local ymin = I.ymin and U.read(I.ymin).num or nil
-   local ymax = I.ymax and U.read(I.ymax).num or nil
    local cons = X .. U.GEQ .. cas.num(xmin) .. ' and ' .. X .. U.LEQ .. cas.num(xmax)
 
    -- evaluate the expression as typed (keeps holes the CAS cancels)
@@ -246,7 +245,7 @@ function S.solve(I, R)
    table.sort(events)
 
    local spec = {
-      xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
+      xmin = xmin, xmax = xmax,
       curves = { { fn = F } }, asymptotes = {}, points = {}, breaks = {},
    }
    local vas = {}
@@ -457,8 +456,8 @@ function S.solve(I, R)
    -- Stationary points --------------------------------------------------------
    guarded('Turning points', function()
    R:section('Turning points')
-   local stat = cas_zeros(d1, xmin, xmax, cons)
-   if #stat == 0 and not evaluated(cas.eval('solve(' .. d1 .. '=0,' .. X .. ')'), 'solve') then
+   local stat, solved = cas_zeros(d1, xmin, xmax, cons)
+   if #stat == 0 and not solved then
       stat = numeric_roots(D1)
    end
    R:step("f'(x) = 0 " .. U.IMPL .. ' ' .. (#stat > 0 and ('x = ' .. table.concat((function()
@@ -629,8 +628,8 @@ function S.solve(I, R)
    -- Points of inflection ------------------------------------------------------
    guarded('Points of inflection', function()
    R:section('Points of inflection')
-   local infl = cas_zeros(d2, xmin, xmax, cons)
-   if #infl == 0 and not evaluated(cas.eval('solve(' .. d2 .. '=0,' .. X .. ')'), 'solve') then
+   local infl, solved = cas_zeros(d2, xmin, xmax, cons)
+   if #infl == 0 and not solved then
       infl = numeric_roots(D2)
    end
    local found_infl = false
@@ -664,8 +663,8 @@ function S.solve(I, R)
    -- Intercepts ------------------------------------------------------------------
    guarded('Intercepts', function()
    R:section('Intercepts')
-   local zs = cas_zeros(fx, xmin, xmax, cons)
-   if #zs == 0 and not evaluated(cas.eval('solve(' .. fx .. '=0,' .. X .. ')'), 'solve') then
+   local zs, solved = cas_zeros(fx, xmin, xmax, cons)
+   if #zs == 0 and not solved then
       zs = numeric_roots(F)
    end
    for _, z in ipairs(zs) do
@@ -708,7 +707,22 @@ function S.solve(I, R)
 
    end)
 
-   -- Graph options ----------------------------------------------------------------
+   R.graph = spec
+   S.view(I, R)
+end
+
+-- Inputs that only change the picture: the app re-applies them to a cached
+-- analysis instead of solving again
+S.view_fields = { ymin = true, ymax = true, asym = true, turn = true, infl = true, icpt = true,
+                  disc = true, labels = true }
+
+function S.view(I, R)
+   local spec = R.graph
+   if not spec then return end
+   local ymin = I.ymin and U.read(I.ymin).num or nil
+   local ymax = I.ymax and U.read(I.ymax).num or nil
+   if ymin and ymax and ymax <= ymin then ymin, ymax = nil, nil end
+   spec.ymin, spec.ymax = ymin, ymax
    local hide = {}
    if I.asym == 'hide' then hide.asym = true end
    if I.turn == 'hide' then hide.max, hide.min = true, true end
@@ -716,7 +730,6 @@ function S.solve(I, R)
    if I.icpt == 'hide' then hide.intercept = true end
    if I.disc == 'hide' then hide.hole, hide.jump, hide['end'], hide.cusp = true, true, true, true end
    spec.hide = hide
-   R.graph = spec
    R.graph_labels = I.labels ~= 'hide'
 end
 
