@@ -117,9 +117,13 @@ function fmt.plain(s)
    if not s then return '' end
    local cas = require 'apps.vce.cas'
    local out = {}
-   cas.scan(s, function(kind, text)
+   cas.scan(s, function(kind, text, nextc)
       if kind == 'id' then
-         text = cas.display_name(text)
+         if text == 'pt' and nextc == '(' then
+            text = ''
+         else
+            text = cas.display_name(text)
+         end
       end
       table.insert(out, text)
    end)

@@ -94,6 +94,9 @@ function G:drawArc(x, y, w, h, a0, da)
    local x2, y2 = pt(a0 + da)
    table.insert(svg, string.format('<path d="M %.1f %.1f A %.1f %.1f 0 %d 0 %.1f %.1f" fill="none" stroke="%s"%s/>', x1, y1, rx, ry, da > 180 and 1 or 0, x2, y2, color(self.col), self:cl()))
 end
+function G:fillArc(x, y, w, h)
+   table.insert(svg, string.format('<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s"%s/>', x + w / 2, y + h / 2, w / 2, h / 2, color(self.col), self:cl()))
+end
 function G:drawString(s, x, y)
    if s == '' then return end
    local w = str_w(s, self.size)
@@ -149,7 +152,7 @@ app.open(nil)
 shot('01_home')
 
 -- Normal: fill fields
-key('char', '1')
+app.new_problem('normal')
 type_text('50') key('enter_key')
 type_text('4') key('enter_key')
 key('enter_key')
@@ -162,7 +165,7 @@ shot('04_normal_toggled')
 
 -- PDF
 key('escape')
-key('char', '5')
+app.new_problem('pdf')
 type_text('k*x*(2-x)') key('enter_key')
 type_text('0') key('enter_key')
 type_text('2') key('enter_key')
@@ -172,7 +175,7 @@ shot('06_pdf_results')
 
 -- Kinematics
 key('escape')
-key('char', '0')
+app.new_problem('kinematics')
 key('right') key('down')
 type_text('-v/2') key('enter_key')
 type_text('0') key('enter_key')
@@ -186,7 +189,7 @@ shot('08_kinematics_work')
 
 -- SUVAT
 key('escape')
-key('char', '9')
+app.new_problem('suvat')
 type_text('10') key('enter_key')
 type_text('20') key('enter_key')
 key('enter_key')
@@ -199,4 +202,60 @@ key('char', 'h')
 shot('10_history')
 key('escape')
 key('escape')
+
+-- Graphs: select the graph row, then open it full screen
+local function graph_row()
+   for i, r in ipairs(app.sheet.rows) do
+      if r.kind == 'graph' then
+         app.sheet:select(i)
+         return i
+      end
+   end
+end
+
+app.new_problem('graph', { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8' })
+for _ = 1, 12 do key('down') end
+shot('11_graph_results')
+graph_row()
+shot('12_graph_row')
+key('enter_key')
+key('up') key('up')
+shot('13_graph_full')
+key('escape')
+key('escape')
+
+app.new_problem('graph', { f = 'x^(2/3)*(x-2)', xmin = '-2', xmax = '4' })
+graph_row()
+key('enter_key')
+shot('14_graph_cusp')
+key('escape')
+key('escape')
+
+app.new_problem('revolution', { type = 'y', f = 'sqrt(x)', g = 'x/2', a = '0', b = '4', axis = 'x' })
+for _ = 1, 8 do key('down') end
+shot('15_revolution')
+graph_row()
+key('enter_key')
+shot('16_revolution_full')
+key('escape')
+key('escape')
+
+app.new_problem('demodels', { type = 'logistic', y0 = '10', cap = '100', k = '0.4', find = 't=5' })
+for _ = 1, 6 do key('down') end
+shot('17_demodels')
+graph_row()
+key('enter_key')
+shot('18_demodels_full')
+key('escape')
+key('escape')
+
+app.new_problem('demodels', { type = 'general', f = 'x-y', x0 = '0', yg0 = '1', h = '0.25', xn = '2' })
+graph_row()
+key('enter_key')
+shot('19_slope_field')
+key('escape')
+key('escape')
+app.show_home()
+for _ = 1, 3 do key('down') end
+shot('20_home_calculus')
 print('ok')

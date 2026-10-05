@@ -11,7 +11,16 @@ with many features such as searchable menus, autocompletion, an application fram
 
 ## VCE Specialist Maths toolkit
 
-This fork adds a solver toolkit for VCE Specialist Mathematics on the TI-Nspire CX II CAS: normal, binomial, discrete and continuous (PDF) random variables, linear combinations, confidence intervals, hypothesis tests with Type I/II errors, SUVAT, and variable-acceleration kinematics. You type in the known values and it shows exact results (enter or a click switches to decimals), 2D maths like the CAS screen, and VCE-style working. History and tags are kept with the document.
+This fork adds a solver toolkit for VCE Specialist Mathematics on the TI-Nspire CX II CAS. It covers:
+
+- function graphs with asymptotes, turning points, inflection points and non-differentiable points;
+- areas, volumes of revolution, arc length and surface area for y = f(x), x = g(y) and parametric curves;
+- DE models (growth, cooling, logistic, mixing, Euler, related rates), with graphs;
+- SUVAT and variable-acceleration kinematics;
+- normal, binomial, discrete and continuous (PDF) random variables;
+- linear combinations, confidence intervals, and hypothesis tests with Type I/II errors.
+
+You type in the known values and it shows exact results (enter or a click switches to decimals), 2D maths like the CAS screen, and VCE-style working. History and tags are kept with the document.
 
 It is available as the standalone `vce.tns` (`npm run build:vce`), as the bilingual `vce_zh.tns` (中英双语, `npm run build:vce-zh`; working steps stay in English), and inside `rpn.tns` under <kbd>.</kbd><kbd>a</kbd> › *VCE Specialist toolkit*. See [doc/vce.md](doc/vce.md).
 

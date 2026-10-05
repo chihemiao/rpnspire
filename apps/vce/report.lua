@@ -34,6 +34,20 @@ function mt:result(label, value, opts)
    return r
 end
 
+-- Add a point result (x, y); shown as (x, y)
+function mt:pair(label, x, y, opts)
+   local r = self:result(label, 'pt(' .. x .. ',' .. y .. ')', opts)
+   r.pair = { x, y }
+   return r
+end
+
+-- Numeric coordinates of a keyed point result
+function mt:pair_num(key)
+   local r = self.by_key[key]
+   if not (r and r.pair) then return nil end
+   return cas.n(r.pair[1]), cas.n(r.pair[2])
+end
+
 -- Add a step of working (one line; text with `math` segments)
 function mt:step(text, ...)
    if select('#', ...) > 0 then

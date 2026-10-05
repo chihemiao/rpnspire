@@ -630,8 +630,18 @@ funcs['fmin'] = function(args, env, ctx) return fopt(args, env, ctx, -1) end
 funcs['limit'] = function(args, env)
    local var = args[2].text
    local p = num(eval(args[3], env))
-   local x = p == math.huge and 1e7 or (p == -math.huge and -1e7 or p + 1e-7)
-   return num(eval(args[1], with_var(env, var, x)))
+   local function f(x) return num(eval(args[1], with_var(env, var, x))) end
+   if p == math.huge or p == -math.huge then
+      local s = p > 0 and 1 or -1
+      local x1, x2 = s * 1e5, s * 1e6
+      local f1, f2 = f(x1), f(x2)
+      if math.abs(f2) > 1e3 and math.abs(f2) > 5 * math.abs(f1) then return f2 > 0 and math.huge or -math.huge end
+      -- assume f ~ L + a/x
+      return f2 + (f2 - f1) * x1 / (x2 - x1)
+   end
+   local a, b = f(p - 1e-7), f(p + 1e-7)
+   if math.abs(a - b) > 1e-4 * (1 + math.abs(a)) then error('undef limit') end
+   return (a + b) / 2
 end
 
 funcs['string'] = function(args, env)
@@ -662,10 +672,14 @@ local binops = {
    ['/'] = function(a, b) if b == 0 then error('divide by zero') end return a / b end,
    ['^'] = function(a, b)
       if a < 0 and b ~= math.floor(b) then
-         -- odd roots of negative numbers
-         local inv = 1 / b
-         if math.abs(inv - math.floor(inv + 0.5)) < 1e-12 and math.floor(inv + 0.5) % 2 == 1 then
-            return -((-a) ^ b)
+         for q = 3, 15, 2 do
+            local p = b * q
+            if math.abs(p - math.floor(p + 0.5)) < 1e-9 then
+               p = math.floor(p + 0.5)
+               local r = (-a) ^ b
+               if p % 2 ~= 0 then r = -r end
+               return r
+            end
          end
          error('nonreal')
       end

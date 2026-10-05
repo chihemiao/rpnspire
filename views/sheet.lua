@@ -9,13 +9,14 @@
 --   note    { text, kind }                   info/warn/error text
 --   link    { title, desc, key }             menu entry (enter/click activates)
 --   math    { m }                            centred display maths
+--   graph   { spec, labels }                 plot (enter/click opens full screen)
 --   text    { text }                         paragraph (help)
 --
 -- Callbacks (assign on the instance):
 --   on_commit(row)            input text changed (row.text updated)
 --   on_submit(row)            enter pressed on an input
 --   on_choice(row)            choice changed
---   on_activate(row)          enter/click on link
+--   on_activate(row)          enter/click on link or graph
 --   on_toggle(row)            result toggled
 --   on_escape()               escape (nothing to cancel)
 --   on_select(row)            selection changed
@@ -29,6 +30,7 @@ local ui = require 'ui'
 local mb = require 'ui.mathbox'
 local sym = require 'ti.sym'
 local report = require 'apps.vce.report'
+local plot = require 'ui.plot'
 
 ui.sheet = class(ui.view)
 
@@ -90,7 +92,7 @@ function ui.sheet:invalidate_layout()
    for _, r in ipairs(self.rows) do r._lay = nil end
 end
 
-local SELECTABLE = { input = true, choice = true, result = true, step = true, link = true, math = true }
+local SELECTABLE = { input = true, choice = true, result = true, step = true, link = true, math = true, graph = true }
 
 function ui.sheet:is_selectable(row)
    return row and SELECTABLE[row.kind] and not row.disabled
@@ -471,6 +473,9 @@ function ui.sheet:layout_row(gc, r, W)
    elseif k == 'math' then
       L.content = mb.layout(r.m or '', S, gc)
       L.h = L.content.h + 2 * PAD + 2
+   elseif k == 'graph' then
+      local fh = self:frame().height
+      L.h = r.height or max(90, floor(fh * 0.66))
    else
       L.h = 4
    end
@@ -674,6 +679,22 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
          set_color(g, C.info)
          draw_stack(L.desc, g, tx, y + PAD + L.title.h)
       end
+   elseif k == 'graph' then
+      local gr = ui.rect(x + PAD, y + PAD, W - 2 * PAD - 3, L.h - 2 * PAD)
+      local ok = pcall(plot.draw, g, gr, r.spec, { small = true, labels = r.labels })
+      g:clipRect('reset')
+      local f = self:frame()
+      g:clipRect('set', f.x, f.y, f.width + 1, f.height + 1)
+      if not ok then
+         set_color(g, C.error)
+         g:setFont('sansserif', 'r', mb.snap(9))
+         g:drawString('graph error', gr.x + 4, gr.y + 4, 'top')
+      end
+      if selected then
+         set_color(g, C.sel_border)
+         g:drawRect(gr.x - 1, gr.y - 1, gr.width + 2, gr.height + 2)
+         g:drawRect(gr.x - 2, gr.y - 2, gr.width + 4, gr.height + 4)
+      end
    elseif k == 'math' then
       set_color(g, C.text)
       local cx = x + max(PAD, floor((W - L.content.w) / 2))
@@ -817,7 +838,7 @@ function ui.sheet:on_enter_key()
       cycle(self, r, 1)
    elseif r.kind == 'result' then
       self:toggle(r)
-   elseif r.kind == 'link' then
+   elseif r.kind == 'link' or r.kind == 'graph' then
       if self.on_activate then self:on_activate(r) end
    end
 end
@@ -855,7 +876,7 @@ function ui.sheet:on_mouse_down(x, y)
    if not r then return end
    if r.kind == 'result' then
       self:toggle(r)
-   elseif r.kind == 'link' then
+   elseif r.kind == 'link' or (r.kind == 'graph' and was) then
       if self.on_activate then self:on_activate(r) end
    elseif r.kind == 'choice' and was then
       cycle(self, r, 1)

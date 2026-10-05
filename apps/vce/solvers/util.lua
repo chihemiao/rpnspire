@@ -180,6 +180,65 @@ function U.expand_solutions(sols, lo, hi, limit)
    return list
 end
 
+-- Infix string of an expression tree node (for sub-expressions)
+function U.tree_infix(node)
+   local expr = require 'expressiontree'
+   local operators = require 'ti.operators'
+   local k = node.kind
+   if k == expr.FUNCTION then
+      local args = {}
+      for i, c in ipairs(node.children) do args[i] = U.tree_infix(c) end
+      return node.text .. '(' .. table.concat(args, ',') .. ')'
+   elseif k == expr.LIST then
+      local args = {}
+      for i, c in ipairs(node.children) do args[i] = U.tree_infix(c) end
+      return '{' .. table.concat(args, ',') .. '}'
+   elseif k == expr.OPERATOR then
+      local parts = {}
+      for i, c in ipairs(node.children) do parts[i] = '(' .. U.tree_infix(c) .. ')' end
+      if node.text == sym.NEGATE then return sym.NEGATE .. parts[1] end
+      if #parts == 1 then return parts[1] .. node.text end
+      local name = operators.query_info(node.text) or node.text
+      return table.concat(parts, name)
+   end
+   return node.text
+end
+
+-- Sub-expressions where f may be undefined: denominators, negative powers,
+-- log/root arguments, tan/sec (cos = 0) and cot/csc (sin = 0).
+-- Returns list of { expr = string, kind = 'zero'|'nonpos'|'neg' }.
+function U.special_subexprs(src)
+   local expr = require 'expressiontree'
+   local tree = expr.from_string(src)
+   local out = {}
+   local function walk(n)
+      if n.kind == expr.OPERATOR then
+         if n.text == '/' and n.children[2] then
+            table.insert(out, { expr = U.tree_infix(n.children[2]), kind = 'zero' })
+         elseif n.text == '^' and n.children[2] and n.children[2].kind == expr.OPERATOR
+                and n.children[2].text == sym.NEGATE then
+            table.insert(out, { expr = U.tree_infix(n.children[1]), kind = 'zero' })
+         end
+      elseif n.kind == expr.FUNCTION and n.children[1] then
+         local name = n.text:lower()
+         local arg = U.tree_infix(n.children[1])
+         if name == 'ln' or name == 'log' then
+            table.insert(out, { expr = arg, kind = 'zero' })
+         elseif name == 'sqrt' or n.text == sym.ROOT then
+            table.insert(out, { expr = arg, kind = 'zero' })
+         elseif name == 'tan' or name == 'sec' then
+            table.insert(out, { expr = 'cos(' .. arg .. ')', kind = 'zero' })
+         elseif name == 'cot' or name == 'csc' then
+            table.insert(out, { expr = 'sin(' .. arg .. ')', kind = 'zero' })
+         end
+      end
+      for _, c in ipairs(n.children or {}) do walk(c) end
+   end
+   local ok = pcall(walk, tree)
+   if not ok then return {} end
+   return out
+end
+
 -- Parse a CAS list input like '{1,2,3}' or '1,2,3'
 function U.read_list(text, map)
    local src = cas.input(text, map)

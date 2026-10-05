@@ -2,6 +2,14 @@
 local t = {}
 
 t.list = {
+   -- Calculus
+   (require 'apps.vce.solvers.graph'),
+   (require 'apps.vce.solvers.revolution'),
+   (require 'apps.vce.solvers.demodels'),
+   -- Mechanics
+   (require 'apps.vce.solvers.suvat'),
+   (require 'apps.vce.solvers.kinematics'),
+   -- Probability
    (require 'apps.vce.solvers.normal'),
    (require 'apps.vce.solvers.normal2'),
    (require 'apps.vce.solvers.binomial'),
@@ -10,8 +18,6 @@ t.list = {
    (require 'apps.vce.solvers.lincomb'),
    (require 'apps.vce.solvers.sampling'),
    (require 'apps.vce.solvers.hyptest'),
-   (require 'apps.vce.solvers.suvat'),
-   (require 'apps.vce.solvers.kinematics'),
 }
 
 t.by_id = {}

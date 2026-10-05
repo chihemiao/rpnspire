@@ -7,6 +7,7 @@ require 'views.edit'
 require 'views.list'
 require 'views.menu'
 require 'views.sheet'
+require 'views.graphview'
 local mb = require 'ui.mathbox'
 local cas = require 'apps.vce.cas'
 local fmt = require 'apps.vce.fmt'
@@ -122,6 +123,13 @@ end
 -- Value shown for a result row
 function A.value_text(row)
    local e = row.exact or ''
+   if row.pair and row.mode == 'approx' then
+      local function r(v)
+         local n = cas.n(v)
+         return n and fmt.round(n, A.settings.dp) or fmt.round_expr(v, A.settings.dp)
+      end
+      return 'pt(' .. r(row.pair[1]) .. ',' .. r(row.pair[2]) .. ')'
+   end
    if row.mode == 'approx' then
       if fmt.has_decimal(e) then
          return e
@@ -206,6 +214,7 @@ local HINTS = {
    step = 'up/down scroll  ' .. sym.CDOT .. '  right: long lines  ' .. sym.CDOT .. '  t: tag  h: history',
    link = 'enter: open  ' .. sym.CDOT .. '  digits: quick open',
    math = 'left/right: scroll',
+   graph = 'enter/click: full screen  ' .. sym.CDOT .. '  up/down: scroll',
 }
 
 function A.update_hint(row)
@@ -235,7 +244,7 @@ function A.show_home()
          table.insert(rows, { kind = 'header', text = T(group) })
       end
       local title, _, desc = i18n.solver(s)
-      table.insert(rows, { kind = 'link', key = tostring(i % 10), title = title, desc = desc,
+      table.insert(rows, { kind = 'link', key = i <= 10 and tostring(i % 10) or nil, title = title, desc = desc,
                            action = { 'new', s.id }, id = 'solver:' .. s.id })
    end
    local items = A.history.items
@@ -304,12 +313,19 @@ function A.build_problem_rows(p, R, I)
    for i, n in ipairs(R.notes) do
       table.insert(rows, { kind = 'note', text = i18n.note(n.text), level = n.kind, key = 'note' .. i })
    end
+   if R.graph then
+      table.insert(rows, { kind = 'header', text = T('Graph') .. '  (' .. T('enter: full screen') .. ')' })
+      table.insert(rows, { kind = 'graph', spec = R.graph, labels = R.graph_labels, key = 'graph' })
+   end
    p.modes = p.modes or {}
    if #R.results > 0 then
       table.insert(rows, { kind = 'header', text = T('Results') })
+      local seen = {}
       for _, r in ipairs(R.results) do
          local key = 'res:' .. (r.key or r.label)
-         table.insert(rows, { kind = 'result', key = key, label = r.label, exact = r.exact,
+         seen[key] = (seen[key] or 0) + 1
+         if seen[key] > 1 then key = key .. ':' .. seen[key] end
+         table.insert(rows, { kind = 'result', key = key, label = r.label, exact = r.exact, pair = r.pair,
                               mode = p.modes[key] or A.settings.mode, term = i18n.term(p.solver, r.key) })
       end
    end
@@ -404,7 +420,18 @@ function A.on_toggle(row)
    end
 end
 
+function A.open_graph(row)
+   local hint = i18n.bi() and '</> 追踪  ^/v 关键点  +/- 缩放  8462 平移  l 标签  a 渐近线  esc 返回' or nil
+   ui.graphview.open(row.spec, { hint = hint, labels = row.labels }, function()
+      ui.set_focus(A.sheet)
+      ui.update()
+   end)
+end
+
 function A.on_activate(row)
+   if row.kind == 'graph' then
+      return A.open_graph(row)
+   end
    local a = row.action
    if not a then return end
    if a[1] == 'new' then

@@ -473,6 +473,230 @@ function test.kin_v_of_x()
    near(rnum(R, 'q_v'), math.exp(2), 1e-3, 'v(1)')
 end
 
+-- Calculus: numeric evaluator, plot ----------------------------------------------------
+
+function test.numeric_compile()
+   local numeric = require 'apps.vce.numeric'
+   local N = sym.NEGATE
+   local f = numeric.compile(N .. 'q9x^2+3*q9x', { 'q9x' })
+   near(f(2), 2, 1e-12, 'polynomial')
+   near(numeric.compile('q9x^(1/3)', { 'q9x' })(-8), -2, 1e-12, 'odd root of a negative')
+   Test.assert(numeric.compile('ln(q9x)', { 'q9x' })(-1) == nil, 'ln of a negative is undefined')
+   Test.assert(numeric.compile('1/q9x', { 'q9x' })(0) == nil, 'division by zero is undefined')
+   near(numeric.compile(sym.EULER .. '^(q9x)', { 'q9x' })(1), math.exp(1), 1e-12, 'e^x')
+   near(numeric.compile('derivative(q9x^3,q9x)', { 'q9x' })(2), 12, 1e-5, 'derivative()')
+   near(numeric.compile('piecewise(q9x,q9x<0,2*q9x)', { 'q9x' })(3), 6, 1e-12, 'piecewise')
+   Test.assert(numeric.compile('q9x+zz', { 'q9x' }) == nil, 'free symbol rejected')
+   -- endpoint singularity: integral of 1/sqrt(x) on [0, 1] = 2
+   near(numeric.integrate(function(x) return 1 / math.sqrt(x) end, 0, 1, 200), 2, 2e-3, 'singular endpoint')
+   near(numeric.integrate(function(x) return x * x end, 0, 3, 50), 9, 1e-9, 'x^2')
+end
+
+function test.plot_draw()
+   local plot = require 'ui.plot'
+   local calls = 0
+   local g = setmetatable({}, { __index = function(_, k)
+      if k == 'getStringWidth' then return function(_, s) return 6 * #(s or '') end end
+      if k == 'getStringHeight' then return function() return 12 end end
+      return function() calls = calls + 1 end
+   end })
+   local spec = {
+      xmin = -4, xmax = 4,
+      curves = { { fn = function(x) return x ~= 1 and 1 / (x - 1) or nil end },
+                 { kind = 'param', fx = math.cos, fy = math.sin, tmin = 0, tmax = 2 * math.pi } },
+      asymptotes = { { kind = 'v', x = 1 }, { kind = 'h', y = 0 }, { kind = 'f', fn = function(x) return x end } },
+      points = { { x = 0, y = -1, kind = 'max', label = 'max' }, { x = 2, y = 1, kind = 'hole' } },
+      shade = { { kind = 'x', top = function(x) return x * x end, a = 0, b = 1 } },
+      field = { fn = function(x, y) return x + y end },
+   }
+   plot.auto_range(spec)
+   Test.assert(spec.ymin < spec.ymax, 'y range')
+   plot.draw(g, { x = 0, y = 0, width = 300, height = 180 }, spec, { labels = true, cursor = { x = 0.5, y = 2 } })
+   Test.assert(calls > 50, 'plot draws (' .. calls .. ' calls)')
+   Test.assert(plot.nice_step(7.3) > 0, 'nice step')
+end
+
+-- Function graph analysis ---------------------------------------------------------------
+
+local function all_pairs(R, key)
+   local out = {}
+   for _, r in ipairs(R.results) do
+      if r.key == key and r.pair then
+         table.insert(out, { cas.n(r.pair[1]), cas.n(r.pair[2]) })
+      end
+   end
+   return out
+end
+
+local function count_key(R, key)
+   local n = 0
+   for _, r in ipairs(R.results) do if r.key == key then n = n + 1 end end
+   return n
+end
+
+-- number on the right of an equation result such as 'q9x=2'
+local function rhs_num(R, key)
+   local e = R:get(key)
+   Test.assert(e, 'missing result ' .. key)
+   return cas.n(e:match('=(.+)$'))
+end
+
+-- value of the line 'q9y=...' at x
+local function line_at(eq, x)
+   local rhs = eq:match('^q9y=(.+)$')
+   return rhs and cas.n(cas.with(rhs, { { 'q9x', cas.num(x) } }))
+end
+
+function test.graph_rational()
+   local R = run('graph', { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8' })
+   no_errors(R)
+   near(rhs_num(R, 'va'), 2, 1e-9, 'x = 2')
+   Test.assert(count_key(R, 'oa') == 1, 'one oblique asymptote (both sides)')
+   near(line_at(R:get('oa'), 10), 12, 1e-3, 'y = x + 2')
+   local mx, my = R:pair_num('max')
+   near(mx, 2 - math.sqrt(3), 1e-6, 'max x')
+   near(my, 4 - 2 * math.sqrt(3), 1e-6, 'max y')
+   local nx, ny = R:pair_num('min')
+   near(nx, 2 + math.sqrt(3), 1e-6, 'min x')
+   near(ny, 4 + 2 * math.sqrt(3), 1e-6, 'min y')
+   Test.assert(#all_pairs(R, 'xint') == 2, 'two x-intercepts')
+   near(select(2, R:pair_num('yint')), 0.5, 1e-9, 'y-intercept')
+   Test.assert(count_key(R, 'cusp') == 0, 'no corners near the asymptote')
+   Test.assert(R.graph and #R.graph.asymptotes == 2 and #R.graph.curves == 1, 'graph spec')
+end
+
+function test.graph_asymptotes_and_points()
+   local R = run('graph', { f = 'x*e^(-x)', xmin = '-1', xmax = '6' })
+   near(rhs_num(R, 'ha'), 0, 1e-9, 'y = 0')
+   near(select(1, R:pair_num('max')), 1, 1e-6, 'max at x = 1')
+   local px, py = R:pair_num('poi')
+   near(px, 2, 1e-6, 'inflection x')
+   near(py, 2 * math.exp(-2), 1e-6, 'inflection y')
+   Test.assert(count_key(R, 'poi') == 1, 'one inflection point')
+
+   R = run('graph', { f = '1/(x^2-1)', xmin = '-4', xmax = '4' })
+   Test.assert(count_key(R, 'va') == 2 and count_key(R, 'ha') == 1, 'x = ' .. '\194\177' .. '1, y = 0')
+
+   R = run('graph', { f = 'ln(x)', xmin = '-1', xmax = '5' })
+   near(rhs_num(R, 'va'), 0, 1e-9, 'ln: x = 0')
+   Test.assert(count_key(R, 'endpoint') == 0, 'ln: no endpoint')
+
+   R = run('graph', { f = 'tan(x)', xmin = '-3', xmax = '3' })
+   Test.assert(count_key(R, 'va') == 2 and count_key(R, 'cusp') == 0, 'tan: two asymptotes')
+
+   R = run('graph', { f = 'sqrt(x^2+1)', xmin = '-6', xmax = '6' })
+   Test.assert(count_key(R, 'oa') == 2, 'y = ' .. '\194\177' .. 'x')
+end
+
+function test.graph_discontinuities()
+   local R = run('graph', { f = '(x^2-4)/(x-2)', xmin = '-5', xmax = '5' })
+   local hx, hy = R:pair_num('hole')
+   near(hx, 2, 1e-9, 'hole x')
+   near(hy, 4, 1e-6, 'hole y')
+   Test.assert(count_key(R, 'va') == 0 and count_key(R, 'poi') == 0, 'removable, straight line')
+
+   R = run('graph', { f = 'sqrt(x-1)', xmin = '-2', xmax = '6' })
+   near(select(1, R:pair_num('endpoint')), 1, 1e-9, 'closed endpoint')
+
+   R = run('graph', { f = 'abs(x^2-4)', xmin = '-4', xmax = '4' })
+   local c = all_pairs(R, 'cusp')
+   Test.assert(#c == 2, 'corners at ' .. '\194\177' .. '2')
+   near(c[2][1], 2, 1e-9, 'corner x')
+   Test.assert(count_key(R, 'poi') == 0, 'no inflection at a corner')
+
+   R = run('graph', { f = 'x^(2/3)', xmin = '-3', xmax = '3' })
+   near(select(1, R:pair_num('cusp')), 0, 1e-9, 'cusp at 0')
+
+   R = run('graph', { f = 'x^(1/3)', xmin = '-3', xmax = '3' })
+   Test.assert(count_key(R, 'cusp') == 1 and count_key(R, 'poi') == 1, 'vertical tangent: inflection, not differentiable')
+end
+
+function test.graph_options()
+   local R = run('graph', { f = '1/x', xmin = '-4', xmax = '4', asym = 'hide', labels = 'hide', turn = 'hide' })
+   local hide = R.graph.hide or {}
+   Test.assert(hide.asym and hide.max and hide.min, 'hidden features')
+   Test.assert(R.graph_labels == false, 'labels off')
+   R = run('graph', { f = 'x^2', xmin = '3', xmax = '1' })
+   Test.assert(#R.notes > 0, 'bad window reported')
+end
+
+-- Area, volume, arc length, surface area ----------------------------------------------
+
+function test.revolution_y_of_x()
+   local R = run('revolution', { type = 'y', f = 'sqrt(x)', a = '0', b = '4', axis = 'x' })
+   no_errors(R)
+   near(rnum(R, 'area'), 16 / 3, 1e-3, 'area')
+   near(rnum(R, 'vol'), 8 * math.pi, 1e-6, 'disc volume')
+   near(rnum(R, 'len'), 4.646783762, 1e-4, 'arc length')
+   near(rnum(R, 'sa'), math.pi / 6 * (17 ^ 1.5 - 1), 1e-3, 'surface area')
+   Test.assert(R.graph and #R.graph.shade == 1, 'shaded region')
+
+   R = run('revolution', { type = 'y', f = 'x^2-1', a = '-2', b = '2', axis = 'x' })
+   near(rnum(R, 'area'), 4, 1e-6, 'area split at the zeros')
+   near(rnum(R, 'area_signed'), 4 / 3, 1e-6, 'signed integral')
+   near(rnum(R, 'vol'), 2 * math.pi * (32 / 5 - 16 / 3 + 2), 1e-5, 'volume')
+end
+
+function test.revolution_between_and_y_axis()
+   local R = run('revolution', { type = 'y', f = 'x^2', g = 'x', a = '0', b = '1', axis = 'y' })
+   near(rnum(R, 'area'), 1 / 6, 1e-6, 'area between curves')
+   near(rnum(R, 'vol_shell'), math.pi / 6, 1e-6, 'shells')
+
+   R = run('revolution', { type = 'x', f = 'y^2', a = '0', b = '2', axis = 'y' })
+   near(rnum(R, 'area'), 8 / 3, 1e-6, 'x = g(y) area')
+   near(rnum(R, 'vol'), 32 * math.pi / 5, 1e-5, 'x = g(y) volume about y-axis')
+end
+
+function test.revolution_parametric()
+   local R = run('revolution', { type = 'param', f = '2cos(t)', g = '2sin(t)', a = '0', b = 'pi', axis = 'x' })
+   near(rnum(R, 'len'), 2 * math.pi, 1e-5, 'semicircle length')
+   near(rnum(R, 'area'), 2 * math.pi, 1e-5, 'semicircle area')
+   near(rnum(R, 'vol'), 32 * math.pi / 3, 1e-4, 'sphere volume')
+   near(rnum(R, 'sa'), 16 * math.pi, 1e-4, 'sphere surface area')
+   Test.assert(R.graph.curves[1].kind == 'param', 'parametric curve')
+   R = run('revolution', { type = 'y', f = 'x', a = '2', b = '1' })
+   Test.assert(#R.notes > 0 and R:num('area') == nil, 'bad limits')
+end
+
+-- DE models -----------------------------------------------------------------------------
+
+function test.demodels_growth_cooling()
+   local R = run('demodels', { type = 'growth', y0 = '100', t1 = '5', y1 = '150', find = 't=10' })
+   no_errors(R)
+   near(rnum(R, 'k'), math.log(1.5) / 5, 1e-9, 'k')
+   near(rnum(R, 'q_y'), 225, 1e-6, 'N(10)')
+   near(rnum(R, 'double'), 5 * math.log(2) / math.log(1.5), 1e-6, 'doubling time')
+   R = run('demodels', { type = 'growth', y0 = '80', half = '3', find = 'N=10' })
+   near(rnum(R, 'q_t'), 9, 1e-6, 'three half-lives')
+
+   R = run('demodels', { type = 'cooling', y0 = '90', cap = '20', t1 = '5', y1 = '60', find = 't=10' })
+   near(rnum(R, 'k'), math.log(7 / 4) / 5, 1e-9, 'cooling k')
+   near(rnum(R, 'q_y'), 20 + 70 * (4 / 7) ^ 2, 1e-6, 'T(10)')
+end
+
+function test.demodels_logistic_mixing()
+   local R = run('demodels', { type = 'logistic', y0 = '10', cap = '100', k = '0.4', find = 't=5' })
+   near(rnum(R, 'tinf'), math.log(9) / 0.4, 1e-6, 'fastest growth')
+   near(rnum(R, 'maxrate'), 10, 1e-9, 'rK/4')
+   near(rnum(R, 'q_y'), 100 / (1 + 9 * math.exp(-2)), 1e-6, 'P(5)')
+
+   R = run('demodels', { type = 'mixing', V0 = '100', rin = '2', cin = '0.5', rout = '2', y0 = '0', find = 't=20' })
+   near(rnum(R, 'qlim'), 50, 1e-9, 'limiting amount')
+   near(rnum(R, 'q_y'), 50 - 50 * math.exp(-0.4), 1e-6, 'Q(20)')
+end
+
+function test.demodels_euler_related()
+   local R = run('demodels', { type = 'general', f = 'x+y', x0 = '0', yg0 = '1', h = '0.1', xn = '0.3' })
+   near(rnum(R, 'euler'), 1.362, 1e-9, 'Euler')
+   Test.assert(R.graph and R.graph.field, 'slope field')
+
+   R = run('demodels', { type = 'related', rel = '4/3*pi*r^3', rate = '10', at = '5' })
+   near(rnum(R, 'dq'), 100 * math.pi, 1e-4, 'dV/dr')
+   near(rnum(R, 'rate'), 10 / (100 * math.pi), 1e-6, 'dr/dt from dV/dt')
+   R = run('demodels', { type = 'related', given = 'dx', rel = '4/3*pi*r^3', rate = '10', at = '5' })
+   near(rnum(R, 'rate'), 1000 * math.pi, 1e-3, 'dV/dt from dr/dt')
+end
+
 -- Self-test cases (same as on the calculator) ------------------------------------------
 
 function test.selftest_cases()
@@ -539,7 +763,11 @@ function test.ui_smoke()
    Test.assert(paint_all() > 0, 'home paints')
 
    for i, s in ipairs(solvers.list) do
-      key('char', tostring(i % 10))
+      if i <= 10 then
+         key('char', tostring(i % 10))
+      else
+         app.new_problem(s.id)
+      end
       Test.assert(app.screen == 'problem', 'opened ' .. s.id)
       -- fill the solver example through the UI
       for _, f in ipairs(s.fields) do
@@ -654,6 +882,65 @@ function test.ui_dynamic_fields()
    ui.on_event('escape')
 end
 
+function test.ui_graph_view()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   local i18n = require 'apps.vce.i18n'
+   local function key(name, ...) ui.on_event(name, ...) end
+   app.open(nil)
+   for _, lang in ipairs({ 'en', 'bi' }) do
+      app.set_lang(lang)
+      app.new_problem('graph', { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8', turn = 'hide' })
+      local gi
+      for i, r in ipairs(app.sheet.rows) do
+         if r.kind == 'graph' then gi = i end
+      end
+      Test.assert(gi, 'graph row shown')
+      app.sheet:select(gi)
+      Test.assert(paint_all() > 0, 'sheet with graph paints')
+      local depth = #ui.modal
+      key('enter_key')
+      Test.assert(#ui.modal == depth + 1, 'full-screen graph opened')
+      local gv = ui.modal[#ui.modal].main
+      Test.assert(gv.hide.max and gv.hide.min, 'solver options carried over')
+      Test.assert(paint_all() > 0, 'graph view paints')
+      local x0 = gv.cx
+      key('right')
+      Test.assert(gv.cx > x0, 'trace moves right')
+      key('up') key('up') key('down')
+      Test.assert(gv.point_idx ~= nil, 'jumps between marked points')
+      local w = gv.spec.xmax - gv.spec.xmin
+      key('char', '+')
+      Test.assert(math.abs((gv.spec.xmax - gv.spec.xmin) - w / 2) < 1e-9, 'zoom in')
+      key('char', '5')
+      key('char', '+') key('char', '\226\136\146') key('char', '8') key('char', '4')
+      key('char', 'l') key('char', 'a') key('tab')
+      Test.assert(gv.hide.asym and gv.hide.max, 'asymptotes toggled, other options kept')
+      paint_all()
+      key('escape')
+      Test.assert(#ui.modal == depth, 'graph closed')
+      Test.assert(ui.get_focus() == app.sheet, 'focus back on the sheet')
+      Test.assert(math.abs(app.sheet.rows[gi].spec.xmax - 8) < 1e-9, 'window restored')
+   end
+   -- the other solvers' graphs (parametric curve, slope field) also open and paint
+   for _, c in ipairs({ { 'revolution', { type = 'param', f = '2cos(t)', g = '2sin(t)', a = '0', b = 'pi' } },
+                        { 'demodels', { type = 'general', f = 'x+y', x0 = '0', yg0 = '1', h = '0.1', xn = '0.3' } } }) do
+      app.new_problem(c[1], c[2])
+      for i, r in ipairs(app.sheet.rows) do
+         if r.kind == 'graph' then app.sheet:select(i) end
+      end
+      local depth = #ui.modal
+      key('enter_key')
+      Test.assert(#ui.modal == depth + 1, c[1] .. ' graph opened')
+      key('right') key('left') key('up')
+      Test.assert(paint_all() > 0, c[1] .. ' graph paints')
+      key('enter_key')
+      Test.assert(#ui.modal == depth, c[1] .. ' graph closed')
+   end
+   app.set_lang('en')
+   Test.assert(i18n.lang == 'en')
+end
+
 -- Bilingual (中英) mode ------------------------------------------------------------------
 
 local function has_cjk(str)
@@ -710,6 +997,11 @@ function test.i18n_coverage()
       { 'binomial', { n = '10', p = '0.3', event = 'X>' } }, { 'discrete', { x = '1,2', px = '0.5' } },
       { 'pdf', { f1 = 'x' } }, { 'suvat', { u = '1', v = '2', a = '3', t = '4' } },
       { 'kinematics', { type = 'a(t)', f = '6t', find = 'q' } }, { 'lincomb', { comb = '2X' } },
+      { 'graph', { f = 'x+k' } }, { 'graph', { f = 'x', xmin = '3', xmax = '1' } },
+      { 'revolution', { type = 'x', f = 'x', a = '0', b = '1' } }, { 'revolution', { f = 'x', a = '2', b = '1' } },
+      { 'revolution', { type = 'param', f = 't' } }, { 'demodels', { type = 'related', rel = 'x*y', rate = '1', at = '1' } },
+      { 'demodels', { type = 'cooling' } }, { 'demodels', { type = 'logistic' } }, { 'demodels', { type = 'mixing' } },
+      { 'demodels', { type = 'general' } }, { 'demodels', { type = 'related' } }, { 'demodels', { type = 'growth', y0 = '5' } },
    }) do
       local R = run(extra[1], extra[2])
       for _, n in ipairs(R.notes) do table.insert(notes, n.text) end

@@ -382,6 +382,8 @@ local function layout_function(gc, node, size)
       return sqrt_box(layout_node(gc, args[1], size), ht, layout_node(gc, args[2], small(size)))
    elseif lname == 'abs' and #args == 1 then
       return wrap(gc, layout_node(gc, args[1], size), '|', '|', size)
+   elseif lname == 'pt' then
+      return wrap(gc, args_box(gc, args, size), '(', ')', size)
    elseif lname == 'bar' and #args == 1 then
       return overline_box(layout_node(gc, args[1], size))
    elseif lname == 'exp' and #args == 1 then
