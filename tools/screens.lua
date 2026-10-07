@@ -181,7 +181,7 @@ type_text('-v/2') key('enter_key')
 type_text('0') key('enter_key')
 type_text('0') key('enter_key')
 type_text('10') key('enter_key')
-key('down')
+for _ = 1, 4 do key('down') end
 type_text('v=5') key('enter_key')
 shot('07_kinematics')
 for _ = 1, 10 do key('down') end
@@ -315,5 +315,22 @@ key('escape')
 
 app.show_settings()
 shot('34_settings')
+key('escape')
+
+-- Kinematics: choose what to find; a clear note when a condition is missing
+-- (enter on 'when' goes to the answer, or to the note when nothing can be found)
+app.new_problem('kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2', want = 'x', find = 't=2' })
+for i, r in ipairs(app.sheet.rows) do
+   if r.id == 'find' then app.sheet:select(i) end
+end
+key('enter_key')
+shot('35_kin_find_x')
+key('escape')
+app.new_problem('kinematics', { type = 'a(t)', f = '6t', v0 = '2', want = 'x', find = 't=2' })
+for i, r in ipairs(app.sheet.rows) do
+   if r.id == 'find' then app.sheet:select(i) end
+end
+key('enter_key')
+shot('36_kin_not_enough')
 key('escape')
 print('ok')

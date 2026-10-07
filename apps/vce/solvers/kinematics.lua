@@ -31,9 +31,14 @@ local S = {
       { id = 'x0', label = 'x0', hint = 'position at t0' },
       { id = 'v0', label = 'v0', hint = 'velocity at t0' },
       { id = 'c2', label = 'also', hint = 'x(2)=5   v=2,x=1   a=-3.5,v=7 (finds k)' },
-      { id = 'find', label = 'Find when', hint = 't=3   v=0   x=5   a=0' },
       { id = 't1', label = 'from t=', hint = 'displacement / distance' },
       { id = 't2', label = 'to t=', hint = '' },
+      -- what to work out: everything, or one quantity (x, v, a or t); last, so
+      -- enter on 'when' goes straight to the answer
+      { id = 'want', label = 'Find', kind = 'choice', options = {
+           { 'all', 'everything' }, { 'x', 'x  position' }, { 'v', 'v  velocity' },
+           { 'a', 'a  acceleration' }, { 't', 't  time' } } },
+      { id = 'find', label = 'when', hint = 't=3   v=0   x=5   a=0' },
    },
    example = { type = 'a(t)', f = '6t', t0 = '0', x0 = '1', v0 = '2', find = 't=2' },
 }
@@ -610,6 +615,14 @@ function S.solve(I, R)
    end
 
    -- Questions ---------------------------------------------------------------
+   -- what is known, for S.view: which quantities are given at a known time
+   local kin = { kind = kind, has = {} }
+   for _, c in ipairs(conds) do
+      for _, q in ipairs({ 't', 'x', 'v', 'a' }) do
+         if c[q] then kin.has[q] = true end
+      end
+   end
+   R.kin = kin
    local find = I.find and U.trim(I.find) ~= '' and I.find or nil
    if find then
       local var, val = find:match('^%s*([txvaTXVA])%s*=%s*(.-)%s*$')
@@ -618,6 +631,12 @@ function S.solve(I, R)
       else
          var = var:lower()
          local value = U.read(val).val
+         kin.var, kin.value = var, U.txt(value)
+         -- answers are labelled with the condition, e.g. 'x  (t = 2)'
+         local cond = '  (' .. var .. ' = ' .. U.txt(value) .. ')'
+         local function result(q, val2, key)
+            R:result(q .. cond, val2, { key = key })
+         end
          R:tag('q')
          R:section('When ' .. var .. ' = ' .. U.txt(value))
          local tmin = conds[1] and conds[1].t or '0'
@@ -652,7 +671,7 @@ function S.solve(I, R)
             end
             if xval then
                table.insert(parts, 'x ' .. U.eq(xval))
-               R:result('x', xval, { key = 'q_x' })
+               result('x', xval, 'q_x')
             end
             local vval
             if K.vt then
@@ -662,7 +681,7 @@ function S.solve(I, R)
             end
             if vval then
                table.insert(parts, 'v ' .. U.eq(vval))
-               R:result('v', vval, { key = 'q_v' })
+               result('v', vval, 'q_v')
             end
             local at = K.at or (K.vt and U.simp('derivative(' .. K.vt .. ',' .. T .. ')'))
             local aval
@@ -675,7 +694,7 @@ function S.solve(I, R)
             end
             if aval then
                table.insert(parts, 'a ' .. U.eq(aval))
-               R:result('a', aval, { key = 'q_a' })
+               result('a', aval, 'q_a')
             end
             if #parts > 0 then R:step('At t = ' .. M(tv) .. ':  ' .. table.concat(parts, ',  ')) end
          end
@@ -697,10 +716,10 @@ function S.solve(I, R)
                local ts = times_where(e)
                if #ts > 0 then
                   R:step('Solve ' .. M(e .. '=' .. value) .. ' for t ' .. U.GEQ .. ' ' .. M(tmin) .. ':  t ' .. U.eq(ts[1]))
-                  R:result('t', ts[1], { key = 'q_t' })
+                  result('t', ts[1], 'q_t')
                   for k = 2, #ts do
                      R:step('also t ' .. U.eq(ts[k]))
-                     R:result('t' .. k, ts[k], { key = 'q_t' .. k })
+                     result('t', ts[k], 'q_t' .. k)
                   end
                   report_at_t(ts[1])
                   done = true
@@ -711,40 +730,40 @@ function S.solve(I, R)
                if var == 'v' and K.tv then
                   local tv = eval_at(K.tv, V, value)
                   R:step('t = t(' .. M(value) .. ') ' .. U.eq(tv))
-                  R:result('t', tv, { key = 'q_t' })
+                  result('t', tv, 'q_t')
                   done = true
                end
                if var == 'v' and K.xv then
                   local xv = eval_at(K.xv, V, value)
                   R:step('x = x(' .. M(value) .. ') ' .. U.eq(xv))
-                  R:result('x', xv, { key = 'q_x' })
+                  result('x', xv, 'q_x')
                   done = true
                end
                if var == 'v' and K.av then
                   local av = eval_at(K.av, V, value)
                   R:step('a = a(' .. M(value) .. ') ' .. U.eq(av))
-                  R:result('a', av, { key = 'q_a' })
+                  result('a', av, 'q_a')
                   done = true
                end
                if var == 'x' and (K.vx or K.v2x) then
                   if K.vx then
                      local vv = eval_at(K.vx, X, value)
                      R:step('v = v(' .. M(value) .. ') ' .. U.eq(vv))
-                     R:result('v', vv, { key = 'q_v' })
+                     result('v', vv, 'q_v')
                   else
                      local v2 = eval_at(K.v2x, X, value)
                      R:step('v' .. U.SQ .. ' = ' .. M(v2) .. ' ' .. U.IMPL .. ' v = ' .. U.PM .. M(U.ROOT .. '(' .. v2 .. ')'))
-                     R:result('v', U.simp(U.ROOT .. '(' .. v2 .. ')'), { key = 'q_v' })
+                     result('v', U.simp(U.ROOT .. '(' .. v2 .. ')'), 'q_v')
                   end
                   if K.ax then
                      local av = eval_at(K.ax, X, value)
                      R:step('a = a(' .. M(value) .. ') ' .. U.eq(av))
-                     R:result('a', av, { key = 'q_a' })
+                     result('a', av, 'q_a')
                   end
                   if K.tx then
                      local tv = eval_at(K.tx, X, value)
                      R:step('t = t(' .. M(value) .. ') ' .. U.eq(tv))
-                     R:result('t', tv, { key = 'q_t' })
+                     result('t', tv, 'q_t')
                   end
                   done = true
                end
@@ -752,7 +771,7 @@ function S.solve(I, R)
                   local sols = cas.solve(K.vx .. '=' .. value, X)
                   if sols and sols[1] then
                      R:step('Solve ' .. M(K.vx .. '=' .. value) .. ':  x ' .. U.eq(sols[1]))
-                     R:result('x', sols[1], { key = 'q_x' })
+                     result('x', sols[1], 'q_x')
                      done = true
                   end
                end
@@ -762,7 +781,7 @@ function S.solve(I, R)
                      local shown = {}
                      for k, sv in ipairs(sols) do
                         table.insert(shown, M(sv))
-                        R:result('v', sv, { key = k == 1 and 'q_v' or ('q_v' .. k) })
+                        result('v', sv, k == 1 and 'q_v' or ('q_v' .. k))
                      end
                      R:step('Solve ' .. M(K.av .. '=' .. value) .. ':  v = ' .. table.concat(shown, ' or '))
                      done = true
@@ -772,13 +791,13 @@ function S.solve(I, R)
                   local sols = cas.solve(K.ax .. '=' .. value, X)
                   if sols and sols[1] then
                      R:step('Solve ' .. M(K.ax .. '=' .. value) .. ':  x ' .. U.eq(sols[1]))
-                     R:result('x', sols[1], { key = 'q_x' })
+                     result('x', sols[1], 'q_x')
                      done = true
                   end
                end
             end
             if not done then
-               R:note('Not enough information to find when ' .. var .. ' = ' .. U.txt(value), 'warn')
+               R:note('Not enough conditions to find when ' .. var .. ' = ' .. U.txt(value), 'warn')
             end
          end
       end
@@ -841,11 +860,99 @@ function S.solve(I, R)
          R:result('avg velocity', avgv, { key = 'avgv' })
          R:result('avg speed', avgs, { key = 'avgs' })
       elseif K.tx then
-         R:note('Displacement over time needs v(t); use Find with t=...', 'warn')
+         R:note('Displacement over time needs v(t); use when with t=...', 'warn')
       else
          R:note('Need v(t) for displacement over a time interval', 'warn')
       end
    end
+end
+
+-- What to show -----------------------------------------------------------------
+
+-- The Find choice only changes what is shown, so the app applies it to the
+-- cached solution without solving again.
+S.view_fields = { want = true }
+
+-- Formula results for each quantity (without a 'when' question)
+local FORMULAS = {
+   x = { xt = true, xv = true }, v = { vt = true, vx = true, v2x = true, vterm = true },
+   a = { at = true, ax = true, av = true }, t = { tv = true, tx = true },
+}
+
+local NAMES = { x = 'x', v = 'v', a = 'a', t = 't' }
+
+-- What is missing to find quantity q (nil when it cannot be told)
+local function missing(q, kin)
+   local has = kin.has
+   if q == 'x' and not has.x then return 'give x0 (x at a known time)' end
+   if q == 'v' and not has.v and kin.kind:sub(1, 1) == 'a' then return 'give v0 (v at a known time)' end
+   if q == 'a' and kin.kind == 'a(v)' and not has.v and kin.var ~= 'v' then return 'give v0 (v at a known time)' end
+   if q == 't' and not has.t and not kin.kind:find('(t)', 1, true) then return 'give t0 with x0 or v0' end
+end
+
+local function not_enough(q, kin)
+   local text = 'Not enough conditions to find ' .. NAMES[q]
+   if kin.var then text = text .. ' when ' .. kin.var .. ' = ' .. kin.value end
+   local m = missing(q, kin)
+   return m and (text .. ': ' .. m) or text
+end
+
+-- Add a 'not enough conditions' note in place of the older technical ones
+-- ('Need x at a known t ...'), so one clear message says what is missing
+local function tell(R, text)
+   if not R.told then
+      local keep = {}
+      for _, n in ipairs(R.notes) do
+         if not (n.text:find('^Need ') or n.text:find('^Not enough conditions to find when')) then
+            table.insert(keep, n)
+         end
+      end
+      R.notes = keep
+      R.told = true
+   end
+   R:note(text, 'warn')
+end
+
+function S.view(I, R)
+   local kin = R.kin
+   if not kin then return end
+   R.told = nil
+   local want = I.want or 'all'
+   local function have(key)
+      for _, r in ipairs(R.results) do
+         if r.key and r.key:gsub('%d+$', '') == key then return true end
+      end
+   end
+   if want == 'all' then
+      -- a 'when' question: say which quantities need more information
+      if kin.var then
+         for _, q in ipairs({ 'x', 'v', 't' }) do
+            if q ~= kin.var and not have('q_' .. q) and missing(q, kin) then
+               tell(R, not_enough(q, kin))
+            end
+         end
+      end
+      return
+   end
+   if kin.var == want then
+      R:note('You already know ' .. want .. ': choose another quantity to find', 'warn')
+      return
+   end
+   -- keep only the chosen quantity (and any constant found on the way)
+   local keep, found = {}, false
+   for _, r in ipairs(R.results) do
+      local base = (r.key or ''):gsub('%d+$', '')
+      local wanted
+      if kin.var then
+         wanted = base == 'q_' .. want
+      else
+         wanted = FORMULAS[want][base]
+      end
+      if wanted then found = true end
+      if wanted or base:match('^param_') then table.insert(keep, r) end
+   end
+   R.results = keep
+   if not found then tell(R, not_enough(want, kin)) end
 end
 
 return S

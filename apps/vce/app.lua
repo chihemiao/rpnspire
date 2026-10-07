@@ -578,6 +578,13 @@ function A.on_submit(_)
          return
       end
    end
+   -- no answer: show the note that says what is missing
+   for k = (sh.sel or 0) + 1, #sh.rows do
+      if sh.rows[k].kind == 'note' then
+         sh:reveal(k)
+         return
+      end
+   end
 end
 
 function A.on_choice(row)

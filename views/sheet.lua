@@ -564,6 +564,22 @@ function ui.sheet:with_layout(fn)
    end)
 end
 
+-- Scroll (without moving the selection) so that row i is on screen
+function ui.sheet:reveal(i)
+   local r = self.rows[i]
+   if not r then return end
+   self:with_layout(function()
+      local f = self:frame()
+      local top, bottom = r._y, r._y + r._lay.h
+      if bottom > self.scroll_y + f.height then
+         self.scroll_y = min(top, bottom - f.height)
+      elseif top < self.scroll_y then
+         self.scroll_y = top
+      end
+      self.scroll_y = max(0, self.scroll_y)
+   end)
+end
+
 function ui.sheet:ensure_visible_sel()
    local r = self:selected()
    if not r then return end

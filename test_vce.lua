@@ -78,6 +78,8 @@ local function run(solver_id, inputs)
    if not ok then
       error((type(err) == 'table' and (err.desc or '') .. ' ' .. tostring(err.expr) or tostring(err)))
    end
+   -- view-only inputs (graph window, kinematics Find) as the app applies them
+   if s.view then s.view(inputs, R) end
    if VERBOSE then
       local function out(s) io.stderr:write(s .. '\n') end
       out('== ' .. solver_id)
@@ -759,6 +761,73 @@ function test.kin_formula_working_and_domain()
 
    R = run('kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2' })
    Test.assert(R.by_key.xt.domain == 'q9t' .. sym.GEQ .. '0', 'x(t) domain')
+end
+
+function test.kin_find_choice()
+   local function notes(R)
+      local t = {}
+      for _, n in ipairs(R.notes) do table.insert(t, report.plain(n.text)) end
+      return t
+   end
+   local function keys(R)
+      local t = {}
+      for _, r in ipairs(R.results) do t[r.key] = true end
+      return t
+   end
+   -- only the chosen quantity, labelled with the condition
+   local R = run('kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2', want = 'x', find = 't=2' })
+   Test.assert(#R.results == 1 and R.results[1].key == 'q_x', 'only x shown')
+   near(rnum(R, 'q_x'), 13, 1e-6, 'x when t = 2')
+   Test.assert(report.plain(R.results[1].label):find('t = 2', 1, true), 'label names the condition')
+   R = run('kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', x0 = '0', want = 'a', find = 'v=5' })
+   Test.assert(#R.results == 1, 'only a shown')
+   near(rnum(R, 'q_a'), -2.5, 1e-9, 'a when v = 5')
+   -- without a 'when': the formulas for that quantity
+   R = run('kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', x0 = '0', want = 'x' })
+   local k = keys(R)
+   Test.assert(k.xv and not k.tv and not k.av, 'only x formulas')
+   -- the constant found on the way stays
+   R = run('kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7',
+                           want = 'x', find = 'v=5' })
+   k = keys(R)
+   Test.assert(k.param_k and k.q_x and not k.q_t, 'constant and x only')
+   -- not enough conditions: one clear note naming what to give
+   R = run('kinematics', { type = 'a(t)', f = '6t', v0 = '2', want = 'x', find = 't=2' })
+   local n = notes(R)
+   Test.assert(#R.results == 0, 'nothing to show')
+   Test.assert(#n == 1 and n[1]:find('^Not enough conditions to find x when t = 2: give x0'), 'asks for x0: ' .. table.concat(n, '; '))
+   R = run('kinematics', { type = 'a(t)', f = '6t', want = 'v', find = 't=2' })
+   Test.assert(notes(R)[1]:find('give v0', 1, true), 'asks for v0')
+   R = run('kinematics', { type = 'a(x)', f = '-4x', want = 't', find = 'x=1' })
+   Test.assert(notes(R)[1]:find('give t0', 1, true), 'asks for t0')
+   -- everything: values that can be found, plus a note for the rest
+   R = run('kinematics', { type = 'a(t)', f = '6t', v0 = '2', find = 't=2' })
+   near(rnum(R, 'q_v'), 14, 1e-6, 'v still found')
+   n = notes(R)
+   Test.assert(#n == 1 and n[1]:find('find x when t = 2: give x0', 1, true), 'note for x only: ' .. table.concat(n, '; '))
+   -- asking for the quantity in the condition
+   R = run('kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', want = 'v', find = 'v=5' })
+   Test.assert(notes(R)[1]:find('^You already know v'), 'already known')
+   -- switching Find only changes the view: no new solve
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   app.open(nil)
+   app.new_problem('kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2', find = 't=2' })
+   local all = #app.last_report.results
+   local calls = 0
+   local orig = cas.backend
+   cas.backend = function(e) calls = calls + 1 return orig(e) end
+   for i, r in ipairs(app.sheet.rows) do
+      if r.id == 'want' then app.sheet:select(i) end
+   end
+   ui.on_event('right')
+   Test.assert(app.current().inputs.want == 'x', 'Find set to x')
+   Test.assert(#app.last_report.results == 1 and #app.last_report.results < all, 'only x shown in the app')
+   Test.assert(calls == 0, 'no new solve (' .. calls .. ' CAS calls)')
+   ui.on_event('left')
+   Test.assert(#app.last_report.results == all, 'everything again')
+   cas.backend = orig
+   ui.on_event('escape')
 end
 
 function test.kin_unknown_constant()
@@ -1481,6 +1550,11 @@ function test.i18n_coverage()
       { 'revolution', { type = 'param', f = 't' } }, { 'demodels', { type = 'related', rel = 'x*y', rate = '1', at = '1' } },
       { 'demodels', { type = 'cooling' } }, { 'demodels', { type = 'logistic' } }, { 'demodels', { type = 'mixing' } },
       { 'demodels', { type = 'general' } }, { 'demodels', { type = 'related' } }, { 'demodels', { type = 'growth', y0 = '5' } },
+      { 'kinematics', { type = 'a(t)', f = '6t', v0 = '2', find = 't=2' } },
+      { 'kinematics', { type = 'a(t)', f = '6t', want = 'v', find = 't=2' } },
+      { 'kinematics', { type = 'a(x)', f = '-4x', want = 't', find = 'x=1' } },
+      { 'kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', want = 'x' } },
+      { 'kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', want = 'v', find = 'v=5' } },
    }) do
       local R = run(extra[1], extra[2])
       for _, n in ipairs(R.notes) do table.insert(notes, n.text) end
