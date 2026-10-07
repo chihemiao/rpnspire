@@ -9,20 +9,27 @@ An RPN interface for the TI Nspire CX
 As I really liked the rpn application for the TI-89 but could not find a usable RPN implementation for the TI nSpire, I've created rpnSpire, a powerful RPN implementation
 with many features such as searchable menus, autocompletion, an application framework in lua, a matrix editor, and many more.
 
-## VCE Specialist Maths toolkit
+## VCE Maths toolkit (Methods + Specialist)
 
-This fork adds a solver toolkit for VCE Specialist Mathematics on the TI-Nspire CX II CAS. It covers:
+This fork adds a solver toolkit for the tech-active Exam 2 of VCE Mathematical Methods (MM) and Specialist Mathematics (SM) on the TI-Nspire CX II CAS. Every topic is marked MM or SM. It covers:
 
 - function graphs with asymptotes, turning points, inflection points and non-differentiable points;
+- unknown constants from conditions (`f(1)=3`, `f'(2)=0`, points, turning points, tangents, asymptotes);
+- transformations y = A f(n(x + b)) + c in VCE order, with the mapping of points, or found from two rules;
+- simultaneous linear equations with a parameter (unique, no or infinitely many solutions);
 - areas, volumes of revolution, arc length and surface area for y = f(x), x = g(y) and parametric curves;
 - DE models (growth, cooling, logistic, mixing, Euler, related rates), with graphs;
 - SUVAT and variable-acceleration kinematics;
-- normal, binomial, discrete and continuous (PDF) random variables;
-- linear combinations, confidence intervals, and hypothesis tests with Type I/II errors.
+- probability in one place: normal, binomial, discrete and continuous (PDF) random variables, sample proportions (p̂) and their confidence intervals, sample means, linear combinations, and hypothesis tests with Type I/II errors.
 
-You type in the known values and it shows exact results (enter or a click switches to decimals), 2D maths like the CAS screen, and VCE-style working. History and tags are kept with the document.
+You type in the known values and it shows exact results (enter or a click switches to decimals), 2D maths like the CAS screen, and VCE-style working. History and tags are kept with the document. The interface is designed for easy reading:
 
-It is available as the standalone `vce.tns` (`npm run build:vce`), as the bilingual `vce_zh.tns` (中英双语, `npm run build:vce-zh`; working steps stay in English), and inside `rpn.tns` under <kbd>.</kbd><kbd>a</kbd> › *VCE Specialist toolkit*. See [doc/vce.md](doc/vce.md).
+- few choices per screen;
+- an example button in every empty problem;
+- answers highlighted right under the inputs;
+- soft colours and short hints.
+
+It is available as the standalone `vce.tns` (`npm run build:vce`), as the bilingual `vce_zh.tns` (中英双语, `npm run build:vce-zh`; working steps stay in English), and inside `rpn.tns` under <kbd>.</kbd><kbd>a</kbd> › *VCE Maths toolkit*. See [doc/vce.md](doc/vce.md).
 
 ## Install
 

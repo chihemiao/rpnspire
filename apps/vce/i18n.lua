@@ -15,6 +15,34 @@ end
 -- Interface strings: English -> Chinese
 I.UI = {
    ['Specialist Maths toolkit'] = '专项数学工具箱',
+   ['VCE Maths toolkit'] = '数学工具箱',
+   ['Maths Methods'] = '数学方法',
+   ['Specialist Maths'] = '专项数学',
+   ['Functions'] = '函数',
+   ['Functions & graphs'] = '函数与图像',
+   ['Probability & statistics'] = '概率与统计',
+   ['decimal places, text size, colours, language'] = '小数位数、字号、颜色、语言',
+   ['how to use this in 3 steps'] = '三步学会使用',
+   ['Try an example'] = '试一个例子',
+   ['fills in a sample question so you can see how it works'] = '自动填入一道例题，看看怎么用',
+   ['Answers'] = '答案',
+   ['Decimal places'] = '小数位数',
+   ['Answers start as'] = '答案默认显示',
+   ['exact'] = '精确值',
+   ['decimal'] = '小数',
+   ['Text size'] = '字号',
+   ['small'] = '小',
+   ['normal'] = '中',
+   ['large'] = '大',
+   ['Colours'] = '颜色',
+   ['soft cream'] = '柔和米色',
+   ['plain white'] = '纯白',
+   ['Language'] = '语言',
+   ['English'] = '英文',
+   ['Chinese + English'] = '中英双语',
+   ['All settings...'] = '全部设置…',
+   ['Colours: soft cream'] = '颜色：柔和米色',
+   ['Colours: plain white'] = '颜色：纯白',
    ['menu: options'] = '菜单',
    ['Probability'] = '概率与统计',
    ['Calculus'] = '微积分',
@@ -88,21 +116,30 @@ I.UI = {
 
 -- Hint bar text (bilingual: Chinese with English key names)
 I.HINTS = {
-   input = 'enter 求解 · tab 下一格 · esc 主页 · ctrl+menu 插入',
-   choice = 'left/right 切换选项 · menu 菜单',
-   result = 'enter/点击 精确⇔小数 · ctrl+C 复制 · n/p 上/下一题',
-   step = 'up/down 滚动 · right 长行 · t 标签 · h 历史',
-   link = 'enter 打开 · 数字键 快速打开',
+   input = '在此输入 · enter 下一格 · esc 返回',
+   choice = 'left/right 切换 · enter 选择',
+   result = 'enter 精确⇔小数 · ctrl+C 复制',
+   step = 'up/down 阅读步骤 · esc 返回',
+   link = 'enter 打开 · 或按数字键',
    math = 'left/right 滚动',
-   graph = 'enter/点击 全屏 · up/down 滚动',
+   graph = 'enter 全屏',
    formula = 'enter 查看此公式的步骤 · left/right 精确⇔小数',
    detail = 'esc 返回本题 · enter 精确⇔小数',
    history = 'enter 打开 · 打字 搜索 · del 删除 · esc 主页',
-   default = 'menu 菜单 · esc 返回',
+   example = 'enter 填入一道例题',
+   prose = 'up/down 阅读 · ctrl+C 复制',
+   pick = 'enter 选择 · 或按数字键',
+   settings = 'left/right 修改 · esc 主页',
+   default = 'menu 更多选项 · esc 返回',
 }
 
 -- Solver titles: { short, title, description }
 I.SOLVERS = {
+   params = { '求未知常数', '由条件求未知常数', 'f(x) 含 a、b、c，已知 f(1)=3、f\'(2)=0、过点 (2,5) 等' },
+   transform = { '图像变换', '函数图像的变换', 'y=f(x) → y=Af(n(x+b))+c：变换顺序、点的映射，或由两个函数求变换' },
+   simul = { '含参方程组', '含参数的线性方程组', '唯一解/无解/无穷多解：令行列式=0，再逐一检验' },
+   proportion = { '样本比例', '样本比例与置信区间', 'E(p̂)、SD(p̂)、P(p̂>a)、p 的近似置信区间、误差界、样本量' },
+   probability = { '概率统计', '概率与统计', '正态、二项、离散、密度函数、样本比例、置信区间、aX+bY、假设检验' },
    graph = { '函数图像', '函数图像与特征', '渐近线、驻点、拐点、截距、不连续点' },
    revolution = { '面积/体积', '面积、旋转体体积、弧长、表面积', 'y=f(x)、x=g(y) 或参数方程：面积、体积、弧长、表面积' },
    demodels = { '微分方程模型', '微分方程模型', '指数增长/衰减、冷却、逻辑斯蒂、混合、欧拉法与斜率场、相关变化率' },
@@ -118,9 +155,54 @@ I.SOLVERS = {
    kinematics = { '运动学', '运动学：a(t)、a(v)、a(x)、v(t)、v(x)、x(t)', '积分/求导、由条件定常数、求 t、x、v' },
 }
 
+-- Short home-screen lines (bilingual mode)
+I.BLURBS = {
+   graph = '渐近线、驻点、截距',
+   params = "由 f(1)=3、f'(2)=0、过点等求 a、b、c",
+   transform = '伸缩、反射、平移；点的映射',
+   simul = '唯一解 / 无解 / 无穷多解',
+   revolution = '面积、体积、弧长、表面积',
+   demodels = '增长、冷却、逻辑斯蒂、混合、欧拉法',
+   suvat = 's、u、v、a、t 任给三个',
+   kinematics = 'a(t)、a(v)、a(x)、v(x)、x(t) 含步骤',
+   probability = '正态、二项、样本比例、置信区间、检验…',
+}
+
+function I.blurb(s)
+   if I.lang == 'bi' and I.BLURBS[s.id] then return I.BLURBS[s.id] end
+   return s.blurb
+end
+
 -- Field labels/hints. label: appended to the original label; hint: replaces
 -- the hint (written bilingual already).
 I.FIELDS = {
+   probability = { type = { label = '类型' } },
+   params = {
+      f = { hint = '例 a*x^3+b*x^2+c   a/(x-b)+c' },
+      c1 = { label = '条件', hint = "f(1)=3" }, c2 = { label = '条件', hint = "f'(2)=0（导数）" },
+      c3 = { label = '条件', hint = '(2,5) = 过点' }, c4 = { label = '条件', hint = 'tp(1,2) = 驻点' },
+      c5 = { label = '条件', hint = 'tangent y=2x+1 at x=1 切线' }, c6 = { label = '条件', hint = 'asymptote x=2 或 y=3 渐近线' },
+   },
+   transform = {
+      f = { hint = '原函数 例 x^2   sin(x)   e^x   sqrt(x)' },
+      g = { label = '像', hint = '例 2f(3x-6)+4  或  3(x-1)^2+2' },
+      pt = { label = '点', hint = '(1,1) y=f(x) 上的点：求它的像' },
+   },
+   simul = {
+      e1 = { label = '方程', hint = '例 kx+2y=3' }, e2 = { label = '方程', hint = '例 2x+(k-3)y=k' },
+      e3 = { label = '方程', hint = '可选：第三个方程（x, y, z）' },
+   },
+   proportion = {
+      p = { hint = 'population proportion 总体比例' },
+      n = { hint = 'sample size 样本量' },
+      event = { label = '事件', hint = '事件 P>0.3  0.2<P<0.4（P 表示 p̂）' },
+      x = { label = '个数', hint = '样本中成功的个数，如 18' },
+      phat = { hint = 'sample proportion 样本比例（或填上面的个数）' },
+      c = { label = '置信水平', hint = 'confidence level 置信水平 95 或 0.95' },
+      e = { label = '误差界', hint = 'margin of error 误差界（求 n）' },
+      lo = { label = '下限', hint = '已知区间 (a, b)' },
+      hi = { label = '上限' },
+   },
    graph = {
       f = { hint = '例 (x^2-1)/(x-2)   x*e^(-x)   f11(x)' },
       xmin = { label = '从', hint = 'x 最小值（默认 -10）' },
@@ -285,6 +367,30 @@ I.OPTIONS = {
 
 -- Result terms: { English, Chinese }
 I.TERMS = {
+   params = {
+      param = { 'unknown constant', '未知常数' }, fx = { 'function', '函数' },
+   },
+   transform = {
+      A = { 'vertical factor A', '纵向系数 A' }, n = { 'horizontal factor n', '横向系数 n' },
+      b = { 'shift inside b', '内部平移 b' }, c = { 'vertical shift c', '纵向平移 c' },
+      step = { 'transformation', '变换' }, map = { 'mapping', '映射' }, inv = { 'inverse mapping', '逆映射' },
+      image = { 'image of the point', '点的像' }, g = { 'rule of the image', '变换后的函数' },
+   },
+   simul = {
+      unique = { 'unique solution', '唯一解' }, none = { 'no solution', '无解' },
+      many = { 'infinitely many solutions', '无穷多解' }, general = { 'general solution', '通解' },
+      sol = { 'solution', '解' }, x = { 'solution', '解' }, y = { 'solution', '解' }, z = { 'solution', '解' },
+      kind = { 'number of solutions', '解的个数' },
+   },
+   proportion = {
+      mean = { 'mean of p-hat', 'p̂ 的均值' }, sd = { 'SD of p-hat', 'p̂ 的标准差' }, var = { 'variance of p-hat', 'p̂ 的方差' },
+      prob = { 'probability (binomial, exact)', '概率（二项分布，精确）' },
+      prob_n = { 'probability (normal approx.)', '概率（正态近似）' },
+      phat = { 'sample proportion', '样本比例' }, se = { 'standard error', '标准误差' },
+      e = { 'margin of error', '误差界' }, lo = { 'CI lower bound', '置信区间下限' },
+      hi = { 'CI upper bound', '置信区间上限' }, c = { 'confidence level', '置信水平' },
+      n = { 'sample size', '样本量' }, z = { 'z value', 'z 值' },
+   },
    graph = {
       d1 = { 'derivative', '一阶导数' }, d2 = { 'second derivative', '二阶导数' },
       va = { 'vertical asymptote', '竖直渐近线' }, ha = { 'horizontal asymptote', '水平渐近线' },
@@ -361,6 +467,32 @@ I.TERMS = {
 
 -- Notes and errors: Lua pattern -> Chinese (captures as %1, %2)
 I.NOTES = {
+   { '^Type f%(x%) with its unknown constants.*$', '输入含未知常数的 f(x)，如 a*x^3+b*x^2+c' },
+   { '^Condition (%d+): (.+)$', '条件 %1：%2' },
+   { '^No unknown constants: .*$', '没有未知常数：在 f(x) 中用 a、b、c 等字母' },
+   { '^A condition can never hold.*$', '某个条件不可能成立：请检查条件' },
+   { '^(%d+) unknowns %((.+)%) need (%d+) conditions: add (%d+) more$', '%1 个未知数（%2）需要 %3 个条件：还差 %4 个' },
+   { '^No values of (.+) satisfy all the conditions$', '没有同时满足所有条件的 %1' },
+   { '^Type the image, e%.g%. .*$', '输入变换后的函数，如 2f(3x-6)+4，或输入 f(x) 和新函数' },
+   { '^The image must be A%*f%(%.%.%.%)%+c: .*$', '像必须是 A*f(...)+c：x 只能出现在 f( ) 里' },
+   { '^The image must be A%*f%(%.%.%.%)%+c with .*$', '像必须是 A*f(...)+c，A、c 为数' },
+   { '^Inside f%( %) must be linear.*$', 'f( ) 里面必须是一次式，如 3x-6 或 3(x-2)' },
+   { '^Type f%(x%) too, .*$', '还需输入 f(x)，或用 f 表示像，如 2f(3x-6)+4' },
+   { '^Could not write the image as .*$', '无法写成 A*f(n(x+b))+c 的形式' },
+   { '^A, n, b and c must be numbers.*$', 'A、n、b、c 必须是数（A、n 不为 0）' },
+   { '^Write the point as .*$', '点请写成 (1,1) 的形式' },
+   { '^Missing %) in .*$', '缺少右括号' },
+   { '^Type two equations.*$', '输入两个方程（三个未知数 x, y, z 时输入三个）' },
+   { '^Equation (%d+) needs one =$', '方程 %1 需要一个等号' },
+   { '^(%d+) unknowns need (%d+) equations$', '%1 个未知数需要 %2 个方程' },
+   { '^Use one parameter only.*$', '只能有一个参数' },
+   { '^Equation (%d+) is not linear in (.+)$', '方程 %1 不是关于 %2 的一次方程' },
+   { '^Conditional events: use one event at a time$', '条件事件：请一次输入一个事件' },
+   { '^Enter p and n %(and an event%), or x and n .*$', '输入 p 和 n（及事件），或输入个数 x、n 和置信水平求置信区间' },
+   { '^Choose the kind of problem$', '请选择题目类型' },
+   { '^Step 1: choose the kind of question$', '第一步：选择题目类型' },
+   { '^Answers appear here as soon as there is enough information$', '信息足够时答案会立刻显示在这里' },
+   { '^Changes apply at once and are saved with the document$', '修改立即生效，并随文档保存' },
    { '^Enter f%(x%) and a window$', '请输入 f(x) 和显示区间' },
    { '^Unknown constant (.+): add a condition such as a=%-3%.5 when v=7$', '未知常数 %1：请在“另一条件”中给出条件，如 a=-3.5 when v=7' },
    { '^Could not find (.+) from the conditions$', '无法由条件求出 %1' },
@@ -461,6 +593,15 @@ I.NOTES = {
 
 -- Working-step section headings: pattern -> Chinese
 I.SECTIONS = {
+   { '^Equations$', '方程' },
+   { '^Solve$', '求解' },
+   { '^Check$', '检验' },
+   { '^Transformations %(in order%)$', '变换（按顺序）' },
+   { '^Mapping$', '映射' },
+   { '^Unique solution$', '唯一解' },
+   { '^det = 0$', '行列式 = 0' },
+   { '^Distribution of (.+)$', '%1 的分布' },
+   { '^Confidence interval$', '置信区间' },
    { '^Domains$', '定义域' },
    { '^Asymptotes$', '渐近线' },
    { '^Turning points$', '驻点' },
@@ -560,6 +701,22 @@ end
 
 -- Help text (English, Chinese) pairs
 I.HELP = {
+   { 'header', 'Quick start: 3 steps', '快速上手：三步' },
+   { 'text', '1. Pick a topic on the home screen (press its number).', '1. 在主页选一个主题（按它的数字键）。' },
+   { 'text', '2. Type what the question gives into the boxes. Leave unknowns empty.', '2. 把题目给的数据填进输入框，未知的留空。' },
+   { 'text', '3. Answers (green) appear at once. The working is under them.', '3. 答案（绿色区域）立刻出现，下面是解题步骤。' },
+   { 'text', 'Not sure what to type? Choose "Try an example" in an empty problem.', '不知道填什么？在空白题目里选“试一个例子”。' },
+   { 'text', 'MM = Maths Methods, SM = Specialist Maths. Both are for the tech-active Exam 2.',
+     'MM = 数学方法（Maths Methods），SM = 专项数学（Specialist Maths），均用于可用计算器的 Exam 2。' },
+   { 'header', 'New topics', '新增主题' },
+   { 'text', "Find unknown constants: type f(x) with letters, e.g. a*x^3+b*x^2+c, then one condition per box: f(1)=3, f'(2)=0, (2,5) (passes through), tp(1,2) (turning point), tangent y=2x+1 at x=1, asymptote x=2 or y=3.",
+     "求未知常数：输入含字母的 f(x)，如 a*x^3+b*x^2+c，每格一个条件：f(1)=3、f'(2)=0、(2,5)（过点）、tp(1,2)（驻点）、tangent y=2x+1 at x=1（切线）、asymptote x=2 或 y=3（渐近线）。" },
+   { 'text', 'Transformations: type f(x) and the image, either with f (2f(3x-6)+4) or as a rule (3(x-1)^2+2). You get the transformations in order, the mapping (x, y) → (…), its inverse and a graph of both.',
+     '图像变换：输入 f(x) 和像，可以用 f 表示（2f(3x-6)+4），也可以直接写函数（3(x-1)^2+2）。会给出按顺序的变换、映射 (x, y) → (…)、逆映射和两条曲线的图像。' },
+   { 'text', 'Simultaneous equations: type each equation in its own box (kx+2y=3). It finds when det = 0 and checks each value: no solution or infinitely many.',
+     '含参方程组：每格输入一个方程（kx+2y=3），求出行列式 = 0 的参数值并逐一检验：无解或无穷多解。' },
+   { 'text', 'Probability: one entry for everything. Choose the kind of question first; switch later with the Type box. Sample proportion (p-hat) gives E, SD, P(p-hat > a), the approximate CI and the sample size.',
+     '概率：所有题型在同一入口。先选题目类型，之后可用“类型”框切换。样本比例 p̂ 可求 E、SD、P(p̂ > a)、近似置信区间和样本量。' },
    { 'header', 'Using a solver', '使用解题器' },
    { 'text', 'Type the values you know into the fields and press enter: everything that can be worked out is shown under Results, with the Working underneath (written the way VCE marking expects).',
      '在各格输入已知量后按 enter：能算出的都会显示在“结果”中，下方的“步骤”按 VCE 评分要求书写（步骤保持英文）。' },

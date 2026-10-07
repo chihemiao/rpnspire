@@ -69,12 +69,20 @@ else
       assert(not menu[1][1]:find('[\227-\233]'), 'English document starts in English')
    end
    -- vce entry: open a solver, type, solve
-   -- vce entry: open a solver, type, solve
    keys('1') keys('50') on.enterKey() keys('4') on.enterKey() on.enterKey() keys('X<55') on.enterKey()
    on.paint(gc)
    on.arrowDown() on.arrowDown() on.enterKey() on.paint(gc)
    on.contextMenu() on.escapeKey() on.paint(gc)
    on.escapeKey()
+   -- Probability: choose the kind (6 = sample proportion), then type
+   keys('9') on.paint(gc) keys('6') on.arrowDown()
+   keys('0.3') on.enterKey() keys('50') on.enterKey() keys('P>0.36') on.enterKey()
+   on.paint(gc) on.escapeKey()
+   -- unknown constants, transformations, simultaneous equations
+   keys('2') keys('a*x^2+b') on.enterKey() keys('f(1)=3') on.enterKey() keys('(0,1)') on.enterKey()
+   on.paint(gc) on.escapeKey()
+   keys('3') keys('x^2') on.enterKey() keys('2f(x-1)+3') on.enterKey() on.paint(gc) on.escapeKey()
+   keys('4') keys('kx+y=1') on.enterKey() keys('x+ky=1') on.enterKey() on.paint(gc) on.escapeKey()
    local state = on.save()
    assert(type(state) == 'table', 'state saved')
    on.restore(state)

@@ -18,7 +18,8 @@ end
 -- Add a result.
 ---@param label string  Label text (may contain `math`)
 ---@param value string  CAS result string (exact where possible)
----@param opts? table   { key = 'mu', unit = 'm/s', domain = '0≤q9t' }
+---@param opts? table   { key = 'mu', unit = 'm/s', domain = '0≤q9t', text = true }
+--   text = true: value is a sentence (e.g. a transformation), shown as text
 function mt:result(label, value, opts)
    opts = opts or {}
    local r = {
@@ -27,6 +28,7 @@ function mt:result(label, value, opts)
       key = opts.key,
       unit = opts.unit,
       domain = opts.domain,
+      text = opts.text,
    }
    table.insert(self.results, r)
    if opts.key then

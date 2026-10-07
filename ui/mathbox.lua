@@ -164,6 +164,19 @@ local function overline_box(content)
    }
 end
 
+-- Circumflex accent above the content (p-hat)
+local function hat_box(content)
+   return {
+      w = content.w, h = content.h + 3, a = content.a + 3,
+      draw = function(_, g, x, y)
+         local m = x + floor(content.w / 2)
+         g:drawLine(m - 2, y + 3, m, y + 1)
+         g:drawLine(m, y + 1, m + 2, y + 3)
+         content:draw(g, x, y + 3)
+      end
+   }
+end
+
 -- Delimiters: '(' ')' '[' ']' '{' '}' '|'
 local function delim_box(gc, kind, h, size)
    local ht = text_height(gc, size)
@@ -386,6 +399,8 @@ local function layout_function(gc, node, size)
       return wrap(gc, args_box(gc, args, size), '(', ')', size)
    elseif lname == 'bar' and #args == 1 then
       return overline_box(layout_node(gc, args[1], size))
+   elseif lname == 'hat' and #args == 1 then
+      return hat_box(layout_node(gc, args[1], size))
    elseif lname == 'exp' and #args == 1 then
       return sup_box(text_box(gc, 'e', size), layout_node(gc, args[1], small(size)), ht)
    elseif (lname == 'integral' or name == sym.INTEGRAL or lname == 'nint') and #args >= 2 then

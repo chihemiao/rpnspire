@@ -1,4 +1,4 @@
--- VCE Specialist toolkit: screens, navigation, history and menus
+-- VCE Maths toolkit (Methods + Specialist): screens, navigation, history and menus
 local class = require 'class'
 local ui = require 'ui'
 require 'views.container'
@@ -22,8 +22,8 @@ local T = i18n.t
 
 local A = {}
 
-A.VERSION = '1.0'
-A.settings = { dp = 4, font = 10, mode = 'exact', lang = nil }
+A.VERSION = '2.0'
+A.settings = { dp = 4, font = 10, mode = 'exact', lang = nil, colors = 'comfort' }
 A.history = History.new()
 A.screen = 'home'
 A.filter = ''
@@ -75,7 +75,7 @@ local function inputs_for(s, p)
    for _, f in ipairs(s.fields) do
       local v = p.inputs[f.id]
       if f.kind == 'choice' then
-         I[f.id] = v or f.options[1][1]
+         I[f.id] = v or (not f.pick and f.options[1][1]) or nil
       elseif v and trim(v) ~= '' then
          I[f.id] = v
       end
@@ -87,9 +87,11 @@ local function summary(p)
    local s = solvers.get(p.solver)
    if not s then return '' end
    local parts = {}
+   local I = inputs_for(s, p)
    for _, f in ipairs(s.fields) do
       local v = p.inputs[f.id]
-      if v and trim(v) ~= '' and #parts < 4 then
+      if s.is_group and f.id == 'type' then v = nil end
+      if v and trim(v) ~= '' and #parts < 4 and (not f.show or f.show(I)) then
          local label = type(f.label) == 'function' and f.label(inputs_for(s, p)) or f.label
          label = report.plain(label):gsub('%s*=$', '')
          table.insert(parts, label .. '=' .. v)
@@ -104,6 +106,11 @@ local function problem_title(p)
    if s then
       local _, short = i18n.solver(s)
       t = short
+      local m = s.member and s.member(p.inputs)
+      if m then
+         local _, mshort = i18n.solver(m)
+         t = t .. ' ' .. sym.CDOT .. ' ' .. mshort
+      end
    end
    if p.tag and p.tag ~= '' then
       return '[' .. p.tag .. '] ' .. t
@@ -123,6 +130,7 @@ end
 -- Value shown for a result row
 function A.value_text(row)
    local e = row.exact or ''
+   if row.prose then return e end
    if row.pair and row.mode == 'approx' then
       local function r(v)
          local n = cas.n(v)
@@ -161,10 +169,16 @@ function A.build()
    A.root, A.title, A.hint, A.sheet = root, title, hint, sheet
 
    sheet.value_text = function(_, row) return A.value_text(row) end
-   sheet.input_display = function(_, _, text)
+   sheet.input_display = function(_, row, text)
+      -- fields that read 'kx' as k*x show it that way
+      local f = A.screen == 'problem' and A.field_of(row)
+      if f and f.implicit then
+         return cas.input(text, require('apps.vce.solvers.util').locals_map(), false, true) or text
+      end
       return cas.input(text) or text
    end
    sheet.copy_text = function(_, row)
+      if row.kind == 'result' and row.prose then return report.plain(row.label .. ' ' .. row.exact) end
       if row.kind == 'result' then return fmt.plain(A.value_text(row)) end
       if row.kind == 'step' or row.kind == 'note' or row.kind == 'text' then return report.plain(row.text) end
       if row.kind == 'input' then return row.text end
@@ -176,6 +190,7 @@ function A.build()
    sheet.on_choice = function(_, row) A.safe(A.on_choice, row) end
    sheet.on_activate = function(_, row) A.safe(A.on_activate, row) end
    sheet.on_detail = function(_, row) A.safe(A.show_detail, row) end
+   sheet.on_pick = function(_, row) A.safe(A.pick_dialog, row) end
    sheet.on_toggle = function(_, row) A.safe(A.on_toggle, row) end
    sheet.on_escape_cb = function() A.safe(A.on_escape) end
    sheet.on_context = function(_, row) A.safe(A.on_context, row) end
@@ -183,6 +198,15 @@ function A.build()
    sheet.on_shortcut = function(_, c) return A.on_shortcut(c) end
    sheet.on_help_cb = function() A.show_help() end
    return root
+end
+
+-- Solver field of an input row in the current problem
+function A.field_of(row)
+   local p = A.current()
+   local s = p and solvers.get(p.solver)
+   for _, f in ipairs(s and s.fields or {}) do
+      if f.id == row.id then return f end
+   end
 end
 
 function A.safe(fn, ...)
@@ -208,56 +232,72 @@ function A.set_title(left, right)
    A.title.right = right or ''
 end
 
+local DOT = '  ' .. sym.CDOT .. '  '
 local HINTS = {
-   input = 'type value  ' .. sym.CDOT .. '  enter: solve  ' .. sym.CDOT .. '  tab: next  ' .. sym.CDOT .. '  esc: home',
-   choice = 'left/right: change option  ' .. sym.CDOT .. '  menu: options',
-   result = 'enter/click: exact ' .. sym.DLIMP .. ' decimal  ' .. sym.CDOT .. '  ctrl+C copy  ' .. sym.CDOT .. '  n/p: next/prev',
-   step = 'up/down scroll  ' .. sym.CDOT .. '  right: long lines  ' .. sym.CDOT .. '  t: tag  h: history',
-   link = 'enter: open  ' .. sym.CDOT .. '  digits: quick open',
+   input = 'type here' .. DOT .. 'enter: next box' .. DOT .. 'esc: back',
+   choice = 'left/right: change' .. DOT .. 'enter: choose',
+   result = 'enter: exact ' .. sym.DLIMP .. ' decimal' .. DOT .. 'ctrl+C: copy',
+   step = 'up/down: read the working' .. DOT .. 'esc: back',
+   link = 'enter: open' .. DOT .. 'or press its number',
    math = 'left/right: scroll',
-   graph = 'enter/click: full screen  ' .. sym.CDOT .. '  up/down: scroll',
-   formula = 'enter: working for this formula  ' .. sym.CDOT .. '  left/right: exact ' .. sym.DLIMP .. ' decimal',
-   detail = 'esc: back to the problem  ' .. sym.CDOT .. '  enter: exact ' .. sym.DLIMP .. ' decimal',
+   graph = 'enter: full screen',
+   formula = 'enter: working for this formula' .. DOT .. 'left/right: exact ' .. sym.DLIMP .. ' decimal',
+   detail = 'esc: back to the problem' .. DOT .. 'enter: exact ' .. sym.DLIMP .. ' decimal',
+   example = 'enter: fill in a sample question',
+   prose = 'up/down: read' .. DOT .. 'ctrl+C: copy',
+   pick = 'enter: choose' .. DOT .. 'or press its number',
+   settings = 'left/right: change' .. DOT .. 'esc: home',
 }
 
 function A.update_hint(row)
    if A.screen == 'history' then
-      A.hint.left = i18n.hint('history', 'enter: open  ' .. sym.CDOT .. '  type: filter  ' .. sym.CDOT .. '  del: delete  ' .. sym.CDOT .. '  esc: home')
+      A.hint.left = i18n.hint('history', 'enter: open' .. DOT .. 'type: search' .. DOT .. 'del: delete' .. DOT .. 'esc: home')
    elseif A.screen == 'detail' then
       A.hint.left = i18n.hint('detail', HINTS.detail)
+   elseif A.screen == 'settings' and row and row.kind == 'choice' then
+      A.hint.left = i18n.hint('settings', HINTS.settings)
+   elseif row and row.hkind and HINTS[row.hkind] then
+      A.hint.left = i18n.hint(row.hkind, HINTS[row.hkind])
+   elseif row and row.kind == 'result' and row.prose then
+      A.hint.left = i18n.hint('prose', HINTS.prose)
    elseif row and row.kind == 'result' and row.detail then
       A.hint.left = i18n.hint('formula', HINTS.formula)
    elseif row and HINTS[row.kind] then
       A.hint.left = i18n.hint(row.kind, HINTS[row.kind])
    else
-      A.hint.left = i18n.hint('default', 'menu: options  ' .. sym.CDOT .. '  esc: back')
+      A.hint.left = i18n.hint('default', 'menu: more options' .. DOT .. 'esc: back')
    end
 end
 
 -- Home ------------------------------------------------------------------------------
 
+local GROUP_TITLES = { Functions = 'Functions & graphs', Probability = 'Probability & statistics' }
+
 function A.show_home()
    A.screen = 'home'
    if i18n.bi() then
-      A.set_title('VCE Specialist ' .. i18n.UI['Specialist Maths toolkit'], 'menu ' .. i18n.UI['menu: options'])
+      A.set_title('VCE ' .. i18n.UI['VCE Maths toolkit'] .. ' ' .. sym.CDOT .. ' Tech Active', 'MM + SM')
    else
-      A.set_title('VCE Specialist Maths toolkit', 'menu: options')
+      A.set_title('VCE Maths ' .. sym.CDOT .. ' Tech Active', 'MM + SM')
    end
    local rows = {}
+   -- badge legend (Chinese only in bilingual mode: the badge already says MM / SM)
+   table.insert(rows, { kind = 'legend', items = { { 'MM', i18n.z('Maths Methods') }, { 'SM', i18n.z('Specialist Maths') } } })
    local group
-   for i, s in ipairs(solvers.list) do
+   for i, s in ipairs(solvers.home) do
       if s.group ~= group then
          group = s.group
-         table.insert(rows, { kind = 'header', text = T(group) })
+         table.insert(rows, { kind = 'header', text = T(GROUP_TITLES[group] or group) })
       end
       local title, _, desc = i18n.solver(s)
-      table.insert(rows, { kind = 'link', key = i <= 10 and tostring(i % 10) or nil, title = title, desc = desc,
-                           action = { 'new', s.id }, id = 'solver:' .. s.id })
+      table.insert(rows, { kind = 'link', key = i <= 10 and tostring(i % 10) or nil, title = title,
+                           desc = i18n.blurb(s) or desc,
+                           badges = solvers.badges(s), action = { 'new', s.id }, id = 'solver:' .. s.id })
    end
    local items = A.history.items
    if #items > 0 then
       table.insert(rows, { kind = 'header', text = T('Recent') })
-      for i = #items, math.max(1, #items - 3), -1 do
+      for i = #items, math.max(1, #items - 2), -1 do
          local p = items[i]
          table.insert(rows, { kind = 'link', title = problem_title(p), desc = summary(p),
                               action = { 'open', i }, id = 'recent:' .. p.id })
@@ -266,7 +306,10 @@ function A.show_home()
    table.insert(rows, { kind = 'header', text = T('More') })
    table.insert(rows, { kind = 'link', title = T('History') .. ' (' .. #items .. ')', desc = T('all problems, tags, search'),
                         action = { 'history' }, id = 'history' })
-   table.insert(rows, { kind = 'link', title = T('Help & keys'), action = { 'help' }, id = 'help' })
+   table.insert(rows, { kind = 'link', title = T('Settings'), desc = T('decimal places, text size, colours, language'),
+                        action = { 'settings' }, id = 'settings' })
+   table.insert(rows, { kind = 'link', title = T('Help & keys'), desc = T('how to use this in 3 steps'),
+                        action = { 'help' }, id = 'help' })
    table.insert(rows, { kind = 'link', title = T('Self-test'), desc = T('check the solvers with this calculator\'s CAS'),
                         action = { 'selftest' }, id = 'selftest' })
    A.sheet:set_rows(rows, true)
@@ -299,23 +342,68 @@ local function is_formula(e)
    return false
 end
 
+-- Solver that owns a field (group members keep their own translations)
+local function field_owner(s, f)
+   return f.owner or s.id, { id = f.base or f.id }
+end
+
+-- Example inputs of a problem's solver (nil if none)
+local function example_of(s, p)
+   if s.is_group then
+      local m = s.member(p.inputs)
+      return m and s.example_for(m.id)
+   end
+   return s.example
+end
+
+-- True when the user has not typed anything yet (a group's type does not count)
+local function no_inputs(s, p)
+   for k, v in pairs(p.inputs) do
+      if not (s.is_group and k == 'type') and trim(v) ~= '' then return false end
+   end
+   return true
+end
+
 function A.build_problem_rows(p, R, I)
    local s = solvers.get(p.solver)
    local rows = {}
    local title = i18n.solver(s)
    table.insert(rows, { kind = 'header', text = title })
+
+   -- a group without a type: choose one from a list first
+   if s.is_group and not I.type then
+      table.insert(rows, { kind = 'note', level = 'info', key = 'pick-note',
+                           text = i18n.note('Step 1: choose the kind of question') })
+      for i, m in ipairs(s.members) do
+         local mt, _, mdesc = i18n.solver(m)
+         table.insert(rows, { kind = 'link', key = i <= 10 and tostring(i % 10) or nil, title = mt, desc = mdesc,
+                              badges = solvers.badges(m), action = { 'pick', 'type', m.id }, id = 'pick:' .. m.id,
+                              hkind = 'pick' })
+      end
+      return rows
+   end
+
    for _, f in ipairs(s.fields) do
       if not f.show or f.show(I) then
          local label = type(f.label) == 'function' and f.label(I) or f.label
          local hint
-         label, hint = i18n.field(s.id, f, label, f.hint)
+         local owner, fid = field_owner(s, f)
+         label, hint = i18n.field(owner, fid, label, f.hint)
          if f.kind == 'choice' then
             local cur = p.inputs[f.id] or f.options[1][1]
             local idx = 1
             local options = {}
             for k, o in ipairs(f.options) do
                if o[1] == cur then idx = k end
-               options[k] = { o[1], i18n.option(s.id, f.id, o[1], o[2] or o[1]) }
+               local text, full
+               if s.is_group and f.id == 'type' then
+                  local m = s.by_member[o[1]]
+                  local mt, ms = i18n.solver(m)
+                  text, full = ms, mt .. '  (' .. (m.course or '') .. ')'
+               else
+                  text = i18n.option(owner, fid.id, o[1], o[2] or o[1])
+               end
+               options[k] = { o[1], text, full }
             end
             table.insert(rows, { kind = 'choice', id = f.id, label = label, options = options, index = idx })
          else
@@ -323,26 +411,35 @@ function A.build_problem_rows(p, R, I)
          end
       end
    end
+   if no_inputs(s, p) and example_of(s, p) then
+      table.insert(rows, { kind = 'link', title = T('Try an example'), desc = T('fills in a sample question so you can see how it works'),
+                           action = { 'example' }, id = 'example', hkind = 'example' })
+   end
    if R.display then
       table.insert(rows, { kind = 'math', m = R.display, key = 'display' })
    end
    for i, n in ipairs(R.notes) do
       table.insert(rows, { kind = 'note', text = i18n.note(n.text), level = n.kind, key = 'note' .. i })
    end
+   if #R.notes == 0 and #R.results == 0 then
+      table.insert(rows, { kind = 'note', level = 'info', key = 'note-wait',
+                           text = i18n.note('Answers appear here as soon as there is enough information') })
+   end
    if R.graph then
       table.insert(rows, { kind = 'header', text = T('Graph') .. '  (' .. T('enter: full screen') .. ')' })
       table.insert(rows, { kind = 'graph', spec = R.graph, labels = R.graph_labels, key = 'graph' })
    end
    p.modes = p.modes or {}
+   local tsid = s.member and (s.member(I) or {}).id or s.id
    if #R.results > 0 then
-      table.insert(rows, { kind = 'header', text = T('Results') })
+      table.insert(rows, { kind = 'header', text = T('Answers'), style = 'answers' })
       local seen = {}
       for _, r in ipairs(R.results) do
          local key = 'res:' .. (r.key or r.label)
          seen[key] = (seen[key] or 0) + 1
          if seen[key] > 1 then key = key .. ':' .. seen[key] end
          table.insert(rows, { kind = 'result', key = key, label = r.label, exact = r.exact, pair = r.pair,
-                              mode = p.modes[key] or A.settings.mode, term = i18n.term(p.solver, r.key),
+                              prose = r.text, mode = p.modes[key] or A.settings.mode, term = i18n.term(tsid, r.key),
                               rkey = r.key, caption = r.domain and (T('domain') .. ': `' .. r.domain .. '`'),
                               detail = is_formula(r.exact) and R:steps_for(r.key) ~= nil })
       end
@@ -442,7 +539,10 @@ end
 
 function A.update_problem_title()
    local p = A.current()
-   A.set_title(problem_title(p), tostring(A.history.current) .. '/' .. tostring(#A.history.items))
+   local s = solvers.get(p.solver)
+   local m = s and s.member and s.member(p.inputs)
+   local course = (m or s or {}).course or ''
+   A.set_title(problem_title(p), course .. '  ' .. tostring(A.history.current) .. '/' .. tostring(#A.history.items))
 end
 
 function A.show_problem(idx)
@@ -481,10 +581,56 @@ function A.on_submit(_)
 end
 
 function A.on_choice(row)
+   if A.screen == 'settings' then return A.apply_setting(row) end
    if A.screen ~= 'problem' then return end
    local p = A.current()
    p.inputs[row.id] = row.options[row.index][1]
    A.refresh_problem(true)
+end
+
+-- Choice with many options: pick from a list
+function A.pick_dialog(row)
+   local items = {}
+   for k, o in ipairs(row.options) do
+      table.insert(items, { title = k .. '  ' .. report.plain(o[3] or o[2] or o[1]), result = k })
+   end
+   local dlg = require('dialog.list').display({ title = report.plain(row.label or ''), items = items,
+                                                selection = row.index or 1 })
+   dlg.on_done = function(item)
+      if item and item.result then
+         row.index = item.result
+         row._lay = nil
+         A.safe(A.on_choice, row)
+      end
+   end
+end
+
+-- Fill in the solver's example (a sample question)
+function A.fill_example()
+   local p = A.current()
+   local s = p and solvers.get(p.solver)
+   local ex = s and example_of(s, p)
+   if not ex then return end
+   for k, v in pairs(ex) do p.inputs[k] = v end
+   A.refresh_problem(false)
+   A.focus_answers()
+end
+
+-- Select the first answer and scroll so the Answers heading is at the top
+function A.focus_answers()
+   local sh = A.sheet
+   for i, r in ipairs(sh.rows) do
+      if r.kind == 'result' then
+         sh:select(i)
+         sh:with_layout(function()
+            local top = sh.rows[i - 1] and sh.rows[i - 1]._y or r._y
+            local maxs = math.max(0, (sh.content_h or 0) - sh:frame().height)
+            sh.scroll_y = math.max(0, math.min(top, maxs))
+         end)
+         break
+      end
+   end
+   A.update_hint(sh:selected())
 end
 
 function A.on_toggle(row)
@@ -511,6 +657,14 @@ function A.on_activate(row)
    if not a then return end
    if a[1] == 'new' then
       A.new_problem(a[2])
+   elseif a[1] == 'pick' then
+      local p = A.current()
+      p.inputs[a[2]] = a[3]
+      A.refresh_problem(false)
+   elseif a[1] == 'example' then
+      A.fill_example()
+   elseif a[1] == 'settings' then
+      A.show_settings()
    elseif a[1] == 'open' then
       A.show_problem(a[2])
    elseif a[1] == 'history' then
@@ -589,7 +743,7 @@ function A.on_shortcut(c)
       local d = tonumber(c)
       if d then
          local idx = d == 0 and 10 or d
-         local s = solvers.list[idx]
+         local s = solvers.home[idx]
          if s then
             A.safe(A.new_problem, s.id)
             return true
@@ -605,6 +759,15 @@ function A.on_shortcut(c)
       end
       return false
    elseif A.screen == 'problem' or A.screen == 'detail' then
+      -- digits choose from a list shown in the problem (kind of question)
+      if tonumber(c) then
+         for _, r in ipairs(A.sheet.rows) do
+            if r.kind == 'link' and r.key == c and r.action then
+               A.safe(A.on_activate, r)
+               return true
+            end
+         end
+      end
       local map = {
          n = function() A.go(1) end,
          p = function() A.go(-1) end,
@@ -850,6 +1013,73 @@ end
 
 -- Settings ---------------------------------------------------------------------------
 
+local SETTINGS = {
+   { id = 'dp', label = 'Decimal places', options = { { 2, '2' }, { 3, '3' }, { 4, '4' }, { 5, '5' }, { 6, '6' } } },
+   { id = 'mode', label = 'Answers start as', options = { { 'exact', 'exact' }, { 'approx', 'decimal' } } },
+   { id = 'font', label = 'Text size', options = { { 'small', 'small' }, { 'normal', 'normal' }, { 'large', 'large' } } },
+   { id = 'colors', label = 'Colours', options = { { 'comfort', 'soft cream' }, { 'plain', 'plain white' } } },
+   { id = 'lang', label = 'Language', options = { { 'en', 'English' }, { 'bi', 'Chinese + English' } } },
+}
+
+local function setting_value(id)
+   if id == 'font' then
+      for name, size in pairs(FONT_SIZES) do
+         if size == A.settings.font then return name end
+      end
+      return 'normal'
+   elseif id == 'lang' then
+      return i18n.lang
+   end
+   return A.settings[id]
+end
+
+-- Settings as a screen of choices (also in menu > Settings)
+function A.show_settings()
+   A.screen = 'settings'
+   A.set_title(T('Settings'), T('esc: back'))
+   local rows = { { kind = 'header', text = T('Settings') } }
+   for _, st in ipairs(SETTINGS) do
+      local cur = setting_value(st.id)
+      local idx, options = 1, {}
+      for k, o in ipairs(st.options) do
+         if o[1] == cur then idx = k end
+         options[k] = { o[1], T(o[2]) }
+      end
+      table.insert(rows, { kind = 'choice', id = st.id, label = T(st.label), options = options, index = idx })
+   end
+   table.insert(rows, { kind = 'note', level = 'info', key = 'set-note',
+                        text = i18n.note('Changes apply at once and are saved with the document') })
+   A.sheet:set_rows(rows, true)
+   A.update_hint(A.sheet:selected())
+end
+
+function A.apply_setting(row)
+   local v = row.options[row.index][1]
+   if row.id == 'dp' then
+      A.settings.dp = v
+      fmt.dp = v
+   elseif row.id == 'mode' then
+      A.settings.mode = v
+   elseif row.id == 'font' then
+      A.settings.font = FONT_SIZES[v] or 10
+      A.sheet:set_font(A.settings.font)
+      mb.clear_cache()
+   elseif row.id == 'colors' then
+      A.set_colors(v)
+   elseif row.id == 'lang' then
+      A.settings.lang = v
+      i18n.lang = v
+      A.register_menu()
+      A.sheet:invalidate_layout()
+   end
+   A.show_settings()
+end
+
+function A.set_colors(name)
+   A.settings.colors = name
+   ui.sheet.set_palette(name)
+end
+
 function A.set_dp(n)
    A.settings.dp = n
    fmt.dp = n
@@ -874,6 +1104,8 @@ function A.set_lang(lang)
       A.show_help()
    elseif A.screen == 'selftest' then
       A.show_home()
+   elseif A.screen == 'settings' then
+      A.show_settings()
    else
       A.redraw_current()
    end
@@ -905,7 +1137,7 @@ end
 
 function A.menu()
    local solver_items = { T('Solvers') }
-   for _, s in ipairs(solvers.list) do
+   for _, s in ipairs(solvers.home) do
       local title = i18n.solver(s)
       table.insert(solver_items, { title, function() A.safe(A.new_problem, s.id) end })
    end
@@ -958,17 +1190,21 @@ function A.menu()
         item('Copy value / line', function() A.sheet:on_copy() end),
         item('Store value to variable...', A.store_dialog),
         item('Insert document function...', A.function_menu),
+        item('Try an example', A.fill_example),
         item('Insert symbol...', A.symbol_menu),
         item('All exact', function() A.set_all_modes('exact') end),
         item('All decimal', function() A.set_all_modes('approx') end),
       },
       { T('Settings'),
+        item('All settings...', A.show_settings),
         dp_item(2), dp_item(3), dp_item(4), dp_item(5), dp_item(6),
         item('Font small', function() A.set_font('small') end),
         item('Font normal', function() A.set_font('normal') end),
         item('Font large', function() A.set_font('large') end),
         item('Language: English', function() A.set_lang('en') end),
         item('Language: Chinese + English', function() A.set_lang('bi') end),
+        item('Colours: soft cream', function() A.set_colors('comfort') A.redraw_current() end),
+        item('Colours: plain white', function() A.set_colors('plain') A.redraw_current() end),
       },
       { T('Help'),
         item('Help & keys', A.show_help),
@@ -994,7 +1230,8 @@ function A.save_state()
    return {
       v = 1,
       history = A.history:save(),
-      settings = { dp = A.settings.dp, font = A.settings.font, mode = A.settings.mode, lang = A.settings.lang },
+      settings = { dp = A.settings.dp, font = A.settings.font, mode = A.settings.mode, lang = A.settings.lang,
+                   colors = A.settings.colors },
    }
 end
 
@@ -1010,6 +1247,7 @@ function A.restore_state(state)
          A.settings.lang = s.lang
          i18n.lang = s.lang
       end
+      if s.colors == 'comfort' or s.colors == 'plain' then A.set_colors(s.colors) end
    end
    fmt.dp = A.settings.dp
    if A.sheet then
@@ -1028,6 +1266,7 @@ function A.open(host)
    i18n.lang = A.settings.lang or i18n.default
    mb.rename = cas.display_name
    fmt.dp = A.settings.dp
+   ui.sheet.set_palette(A.settings.colors)
    A.host = host
    local root = A.root or A.build()
    local session = ui.push_modal(root)

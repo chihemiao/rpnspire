@@ -792,6 +792,195 @@ end
 
 -- Self-test cases (same as on the calculator) ------------------------------------------
 
+-- Functions (Maths Methods) ------------------------------------------------------------
+
+local function has_note(R, pat)
+   for _, n in ipairs(R.notes) do
+      if report.plain(n.text):find(pat) then return true end
+   end
+   return false
+end
+
+local function has_step(R, pat)
+   for _, st in ipairs(R.steps) do
+      if report.plain(st.text):find(pat) then return true end
+   end
+   return false
+end
+
+function test.cas_input_implicit()
+   local U = require 'apps.vce.solvers.util'
+   local map = U.locals_map()
+   Test.assert(cas.input('kx+2y', map, false, true) == 'q9k*q9x+2q9y', 'kx -> k*x')
+   Test.assert(cas.input('k(x-1)', map, false, true) == 'q9k*(q9x-1)', 'k(x-1) -> k*(x-1)')
+   Test.assert(cas.input('sin(x)+ln(x)', map, false, true) == 'sin(q9x)+ln(q9x)', 'functions kept')
+   Test.assert(cas.input('kx', map) == 'kx', 'off unless asked')
+   Test.assert(cas.display_name('q8l') == '\206\187', 'free parameter shows as lambda')
+end
+
+function test.params_conditions()
+   -- f(x) = ax^3+bx^2+c with f(1)=3, f'(2)=0, (0,1): -x^3+3x^2+1
+   local R = run('params', { f = 'a*x^3+b*x^2+c', c1 = 'f(1)=3', c2 = "f'(2)=0", c3 = '(0,1)' })
+   no_errors(R)
+   near(rnum(R, 'param_a'), -1, 1e-6, 'a')
+   near(rnum(R, 'param_b'), 3, 1e-6, 'b')
+   near(rnum(R, 'param_c'), 1, 1e-9, 'c')
+   Test.assert(R.graph and #R.graph.points >= 1, 'graph with the given point')
+   Test.assert(has_step(R, '^Solve the 3 equations'), 'solved simultaneously')
+   -- turning point and a point; implicit products
+   R = run('params', { f = 'ax^2+bx+c', c1 = 'tp(1,2)', c2 = '(0,3)' })
+   no_errors(R)
+   near(rnum(R, 'param_a'), 1, 1e-6, 'a from tp')
+   near(rnum(R, 'param_b'), -2, 1e-6, 'b from tp')
+   near(rnum(R, 'param_c'), 3, 1e-9, 'c from point')
+   -- tangent and asymptotes
+   R = run('params', { f = 'a*x^2+b*x', c1 = 'tangent y=2x+1 at x=1' })
+   near(rnum(R, 'param_a'), -1, 1e-6, 'a from tangent')
+   near(rnum(R, 'param_b'), 4, 1e-6, 'b from tangent')
+   R = run('params', { f = 'a/(x-b)+c', c1 = 'x=2 asymptote', c2 = 'asymptote y=3', c3 = '(3,5)' })
+   near(rnum(R, 'param_b'), 2, 1e-6, 'vertical asymptote')
+   near(rnum(R, 'param_c'), 3, 1e-6, 'horizontal asymptote')
+   near(rnum(R, 'param_a'), 2, 1e-6, 'a from the point')
+   Test.assert(R.graph.asymptotes and #R.graph.asymptotes == 2, 'asymptotes drawn')
+   -- one unknown, and too few conditions
+   R = run('params', { f = 'k*e^(-x)', c1 = 'f(0)=4' })
+   near(rnum(R, 'param_k'), 4, 1e-9, 'k')
+   R = run('params', { f = 'a*x^2+b', c1 = 'f(1)=2' })
+   Test.assert(has_note(R, '2 unknowns %(a, b%) need 2 conditions'), 'asks for another condition')
+   R = run('params', { f = 'a*x+b', c1 = 'f(1)' })
+   Test.assert(has_note(R, 'Condition 1'), 'bad condition reported')
+   -- the number of condition boxes follows the number of unknowns
+   local S = require 'apps.vce.solvers.params'
+   local shown = 0
+   for _, f in ipairs(S.fields) do
+      if f.id:match('^c%d') and (not f.show or f.show({ f = 'a*x^3+b*x^2+c' })) then shown = shown + 1 end
+   end
+   Test.assert(shown == 3, 'three boxes for a, b, c (got ' .. shown .. ')')
+end
+
+function test.transform_forms()
+   -- image written with f
+   local R = run('transform', { f = 'x^2', g = '-2f(3x-6)+4', pt = '(1,1)' })
+   no_errors(R)
+   near(rnum(R, 'A'), -2, 1e-9, 'A')
+   near(rnum(R, 'n'), 3, 1e-9, 'n')
+   near(rnum(R, 'b'), -2, 1e-9, 'b')
+   near(rnum(R, 'c'), 4, 1e-9, 'c')
+   local x, y = R:pair_num('image')
+   near(x, 7 / 3, 1e-9, 'image x')
+   near(y, 2, 1e-9, 'image y')
+   local order = {}
+   for _, r in ipairs(R.results) do
+      if r.key and r.key:find('^step') then table.insert(order, r.exact) end
+   end
+   Test.assert(#order == 5, 'five transformations')
+   Test.assert(order[1]:find('^Dilation by a factor of 2 from the x%-axis'), 'dilation first: ' .. order[1])
+   Test.assert(order[3]:find('Reflection in the x%-axis'), 'then reflection')
+   Test.assert(order[4]:find('2 units in the positive direction of the x%-axis'), 'then translations: ' .. order[4])
+   Test.assert(R.graph and #R.graph.curves == 2 and #R.graph.points == 2, 'f, image and the point on the graph')
+   -- image as a rule: matched with f
+   R = run('transform', { f = 'x^2', g = '3(x-1)^2+2' })
+   near(rnum(R, 'A'), 3, 1e-9, 'A from rule')
+   near(rnum(R, 'n'), 1, 1e-9, 'n from rule')
+   near(rnum(R, 'b'), -1, 1e-9, 'b from rule')
+   near(rnum(R, 'c'), 2, 1e-9, 'c from rule')
+   R = run('transform', { f = 'sqrt(x)', g = '2sqrt(3-x)+1' })
+   near(rnum(R, 'n'), -1, 1e-9, 'reflection in the y-axis')
+   near(rnum(R, 'b'), -3, 1e-9, 'b for 3-x')
+   -- expanded rule: found by search
+   R = run('transform', { f = 'x^2', g = 'x^2-2x+3' })
+   near(rnum(R, 'b'), -1, 1e-9, 'search b')
+   near(rnum(R, 'c'), 2, 1e-9, 'search c')
+   -- not of the form
+   R = run('transform', { f = 'x^2', g = 'x^3' })
+   Test.assert(has_note(R, 'Could not write the image'), 'not a transformation of f')
+   R = run('transform', { g = 'f(x^2)' })
+   Test.assert(has_note(R, 'must be linear'), 'inside must be linear')
+end
+
+function test.simul_parameter()
+   local R = run('simul', { e1 = 'kx+2y=k', e2 = '2x+(k-3)y=k-2' })
+   no_errors(R)
+   local function rhs(key)
+      local e = R:get(key)
+      return e and cas.n(e:match('=(.+)$'))
+   end
+   near(rhs('none'), -1, 1e-6, 'no solution when k = -1')
+   near(rhs('many'), 4, 1e-6, 'infinitely many when k = 4')
+   Test.assert(R:get('unique'):find(sym.NEQ, 1, true), 'unique when k is not -1 or 4')
+   Test.assert(R:get('general'):find('q8l', 1, true), 'general solution uses a free parameter')
+   -- unique solution at k = 0: 2y = 0, 2x - 3y = -2 -> x = -1, y = 0
+   local x = cas.n('(' .. R:get('sol_x') .. ')|q9k=0')
+   near(x, -1, 1e-9, 'x(k) at k = 0')
+   -- three unknowns
+   R = run('simul', { e1 = 'x+y+z=1', e2 = 'x+2y+3z=2', e3 = '2x+3y+kz=3' })
+   no_errors(R)
+   near(rhs('many'), 4, 1e-6, '3x3: infinitely many when k = 4')
+   Test.assert(R:get('none') == '"no value"', '3x3: never inconsistent')
+   -- no parameter
+   R = run('simul', { e1 = 'x+y=3', e2 = 'x-y=1' })
+   near(rnum(R, 'x'), 2, 1e-9, 'x')
+   near(rnum(R, 'y'), 1, 1e-9, 'y')
+   R = run('simul', { e1 = 'x+y=3', e2 = '2x+2y=5' })
+   Test.assert(R:get('kind') == '"none"', 'parallel lines')
+   R = run('simul', { e1 = 'x*y=3', e2 = 'x-y=1' })
+   Test.assert(has_note(R, 'not linear'), 'non-linear rejected')
+end
+
+function test.proportion()
+   local R = run('proportion', { p = '0.3', n = '50', event = 'P>0.36' })
+   no_errors(R)
+   near(rnum(R, 'mean'), 0.3, 1e-12, 'E(p-hat)')
+   near(rnum(R, 'sd'), math.sqrt(0.3 * 0.7 / 50), 1e-9, 'SD(p-hat)')
+   -- P(p-hat > 0.36) = P(X > 18) = P(X >= 19), X ~ Bi(50, 0.3)
+   near(rnum(R, 'prob'), mock.binom_cdf(50, 0.3, 19, 50), 1e-9, 'exact binomial')
+   local sd = math.sqrt(0.3 * 0.7 / 50)
+   near(rnum(R, 'prob_n'), 1 - mock.phi((0.36 - 0.3) / sd), 1e-6, 'normal approximation')
+   -- CI from a count
+   R = run('proportion', { n = '100', x = '24', c = '95' })
+   local se = math.sqrt(0.24 * 0.76 / 100)
+   near(rnum(R, 'phat'), 0.24, 1e-12, 'p-hat')
+   near(rnum(R, 'lo'), 0.24 - 1.959964 * se, 1e-5, 'CI lower')
+   near(rnum(R, 'hi'), 0.24 + 1.959964 * se, 1e-5, 'CI upper')
+   -- sample size (p-hat unknown -> 1/2), and from a given interval
+   R = run('proportion', { e = '0.03', c = '95' })
+   near(rnum(R, 'n'), 1068, 0, 'n with p-hat = 1/2')
+   R = run('proportion', { lo = '0.21', hi = '0.29', c = '95' })
+   near(rnum(R, 'n'), 450, 0, 'n from the interval')
+   R = run('proportion', { lo = '0.2', hi = '0.3', n = '100' })
+   near(rnum(R, 'c'), 2 * mock.phi(0.05 / math.sqrt(0.25 * 0.75 / 100)) - 1, 1e-6, 'level of an interval')
+   R = run('proportion', { p = '0.3', n = '10', event = 'X>=3' })
+   near(rnum(R, 'prob'), mock.binom_cdf(10, 0.3, 3, 10), 1e-9, 'count event')
+end
+
+function test.probability_group()
+   local solvers = require 'apps.vce.registry'
+   local G = solvers.get('probability')
+   Test.assert(G.is_group and #G.members == 9, 'one Probability entry with 9 kinds')
+   local home_ids = {}
+   for _, s in ipairs(solvers.home) do home_ids[s.id] = true end
+   Test.assert(home_ids.probability and not home_ids.normal and not home_ids.binomial, 'members are not on home')
+   for _, s in ipairs(solvers.list) do
+      Test.assert(s.course and s.course:match('^[MS][MS]'), 'course marked for ' .. s.id)
+   end
+   -- inputs are kept per kind
+   local ex = G.example_for('binomial')
+   Test.assert(ex.type == 'binomial' and ex['binomial.n'] == '10', 'prefixed example')
+   local R = report.new()
+   G.solve({ type = 'normal', ['normal.mu'] = '50', ['normal.sd'] = '4', ['normal.event'] = '45<X<55',
+             ['binomial.n'] = '3' }, R)
+   near(rnum(R, 'p'), mock.phi(1.25) - mock.phi(-1.25), 1e-6, 'normal through the group')
+   R = report.new()
+   G.solve({}, R)
+   Test.assert(has_note(R, 'Choose the kind'), 'asks for the kind first')
+   -- member fields only show for their kind
+   local shown = {}
+   for _, f in ipairs(G.fields) do
+      if f.show and f.show({ type = 'pdf' }) then shown[f.owner] = true end
+   end
+   Test.assert(shown.pdf and not shown.normal, 'only the chosen kind\'s fields')
+end
+
 function test.selftest_cases()
    local selftest = require 'apps.vce.selftest'
    for _, c in ipairs(selftest.cases) do
@@ -855,31 +1044,31 @@ function test.ui_smoke()
    Test.assert(app.screen == 'home', 'starts at home')
    Test.assert(paint_all() > 0, 'home paints')
 
-   for i, s in ipairs(solvers.list) do
-      if i <= 10 then
-         key('char', tostring(i % 10))
-      else
-         app.new_problem(s.id)
-      end
-      Test.assert(app.screen == 'problem', 'opened ' .. s.id)
-      -- fill the solver example through the UI
+   -- fill a solver's example through the UI (ids prefixed inside a group)
+   local function fill(s, prefix)
       for _, f in ipairs(s.fields) do
          local v = s.example and s.example[f.id]
-         local row = app.sheet:selected()
-         if row and row.id == f.id then
-            if f.kind == 'choice' then
-               for _ = 1, 10 do
-                  if row.options[row.index][1] == (v or row.options[1][1]) then break end
-                  key('right')
-                  row = app.sheet:selected()
+         local id = prefix .. f.id
+         for i, r in ipairs(app.sheet.rows) do
+            if r.id == id then
+               app.sheet:select(i)
+               if f.kind == 'choice' then
+                  for _ = 1, 10 do
+                     local row = app.sheet:selected()
+                     if row.options[row.index][1] == (v or row.options[1][1]) then break end
+                     key('right')
+                  end
+               elseif v then
+                  type_text(v)
+                  key('enter_key')
                end
-               key('down')
-            else
-               if v then type_text(v) end
-               key('enter_key')
+               break
             end
          end
       end
+   end
+
+   local function check_and_walk(s)
       local R = app.last_report
       Test.assert(R and #R.results > 0, s.id .. ' example has results')
       for _, n in ipairs(R.notes) do
@@ -903,8 +1092,25 @@ function test.ui_smoke()
          key('down')
       end
       paint_all()
-      key('escape')
-      Test.assert(app.screen == 'home', 'back home from ' .. s.id)
+   end
+
+   for i, h in ipairs(solvers.home) do
+      local members = h.is_group and h.members or { h }
+      for k, s in ipairs(members) do
+         key('char', tostring(i % 10))
+         Test.assert(app.screen == 'problem', 'opened ' .. h.id)
+         if h.is_group then
+            -- a list of the kinds of question comes first; a digit picks one
+            Test.assert(app.sheet:selected().kind == 'link', h.id .. ': list of kinds first')
+            paint_all()
+            key('char', tostring(k % 10))
+            Test.assert(app.current().inputs.type == s.id, h.id .. ': picked ' .. s.id)
+         end
+         fill(s, h.is_group and (s.id .. '.') or '')
+         check_and_walk(s)
+         key('escape')
+         Test.assert(app.screen == 'home', 'back home from ' .. s.id)
+      end
    end
 
    -- history, filter, help, self-test
@@ -936,7 +1142,7 @@ function test.ui_smoke()
    -- save/restore round trip
    local state = app.save_state()
    app.restore_state(state)
-   Test.assert(#app.history.items == #solvers.list + 2 or #app.history.items > 0, 'history kept')
+   Test.assert(#app.history.items > 0, 'history kept')
    dlg_error.display = orig
    app.set_dp(4)
    app.set_font('normal')
@@ -1114,6 +1320,104 @@ function test.ui_formula_working()
    Test.assert(app.screen == 'problem' and app.sheet:selected().rkey == 'xv', 'back on x(v)')
    Test.assert(app.sheet:selected().mode ~= mode, 'mode kept')
    app.settings.mode = 'exact'
+end
+
+function test.ui_new_user_flow()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   local solvers = require 'apps.vce.registry'
+   local function key(name, ...) ui.on_event(name, ...) end
+   app.settings.mode = 'exact'
+   app.open(nil)
+   -- home: a legend for MM / SM, badges on every topic, numbers 1-9
+   local rows = app.sheet.rows
+   Test.assert(rows[1].kind == 'legend', 'MM / SM legend first')
+   local links = 0
+   for _, r in ipairs(rows) do
+      if r.kind == 'link' and r.action and r.action[1] == 'new' then
+         links = links + 1
+         Test.assert(r.badges and #r.badges >= 1, 'badge on ' .. r.title)
+         Test.assert(r.desc and #r.desc <= 48, 'short line under ' .. r.title)
+      end
+   end
+   Test.assert(links == #solvers.home and links <= 10, 'one entry per topic (' .. links .. ')')
+   Test.assert(paint_all() > 0, 'home paints')
+
+   -- Probability: choose the kind of question first
+   key('char', '9')
+   Test.assert(app.current().solver == 'probability', 'probability opened')
+   Test.assert(app.hint.left:find('number', 1, true), 'hint says press a number')
+   key('char', '3')
+   Test.assert(app.current().inputs.type == 'binomial', 'digit picks the kind')
+   local sel = app.sheet:selected()
+   Test.assert(sel.kind == 'choice' and sel.id == 'type', 'the Type box comes first')
+   Test.assert(app.title.right:find('MM', 1, true), 'course shown in the title')
+   -- an empty problem offers an example; it fills in and shows the answers
+   local ex
+   for i, r in ipairs(app.sheet.rows) do
+      if r.action and r.action[1] == 'example' then ex = i end
+   end
+   Test.assert(ex, 'example offered')
+   app.sheet:select(ex)
+   Test.assert(app.hint.left:find('sample', 1, true), 'example hint')
+   key('enter_key')
+   Test.assert(app.current().inputs['binomial.n'] == '10', 'example filled in')
+   Test.assert(app.sheet:selected().kind == 'result', 'answers selected')
+   Test.assert(app.sheet.scroll_y > 0, 'scrolled to the answers')
+   for _, r in ipairs(app.sheet.rows) do
+      Test.assert(not (r.action and r.action[1] == 'example'), 'example link gone once filled')
+   end
+   -- enter on the Type box opens a list (many kinds); choosing switches kind, inputs kept
+   app.sheet:select(2)
+   local depth = #ui.modal
+   key('enter_key')
+   Test.assert(#ui.modal == depth + 1, 'list of kinds opened')
+   paint_all()
+   local dlg = ui.modal[#ui.modal]
+   local list = dlg.main.children and dlg.main.children[#dlg.main.children]
+   list:set_selection(1)
+   list:on_enter_key()
+   Test.assert(#ui.modal == depth, 'list closed')
+   Test.assert(app.current().inputs.type == 'normal', 'switched to normal')
+   app.current().inputs.type = 'binomial'
+   app.refresh_problem(true)
+   Test.assert(app.last_report and #app.last_report.results > 0, 'binomial inputs kept after switching')
+   key('escape')
+   Test.assert(app.screen == 'home', 'home again')
+
+   -- old saved problems of a member kind still open
+   app.new_problem('normal', { mu = '50', sd = '4', event = 'X<55' })
+   Test.assert(#app.last_report.results > 0, 'member solver opens directly')
+   key('escape')
+
+   -- implicit products are shown as products
+   app.new_problem('simul', { e1 = 'kx+2y=k', e2 = '2x+(k-3)y=k-2' })
+   local disp = app.sheet:input_display(app.sheet.rows[2], 'kx+2y=k')
+   Test.assert(disp:find('q9k*q9x', 1, true), 'kx shown as k*x')
+   paint_all()
+   key('escape')
+
+   -- settings screen applies at once and is saved
+   app.set_colors('comfort')
+   app.set_dp(4)
+   app.show_settings()
+   Test.assert(app.screen == 'settings', 'settings screen')
+   for i, r in ipairs(app.sheet.rows) do
+      if r.id == 'colors' then app.sheet:select(i) end
+   end
+   key('right')
+   Test.assert(app.settings.colors == 'plain' and ui.sheet.colors.bg == 0xFFFFFF, 'plain colours')
+   for i, r in ipairs(app.sheet.rows) do
+      if r.id == 'dp' then app.sheet:select(i) end
+   end
+   key('right')
+   Test.assert(app.settings.dp == 5, 'decimal places changed')
+   Test.assert(app.save_state().settings.colors == 'plain', 'colours saved')
+   paint_all()
+   app.set_colors('comfort')
+   app.set_dp(4)
+   key('escape')
+   Test.assert(app.screen == 'home', 'esc goes home from settings')
 end
 
 -- Bilingual (中英) mode ------------------------------------------------------------------

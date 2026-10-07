@@ -49,6 +49,21 @@ T.cases = {
    { 'demodels', { type = 'mixing', V0 = '100', rin = '2', cin = '0.5', rout = '2', y0 = '0', find = 't=20' }, 'q_y', 16.483998 },
    { 'demodels', { type = 'general', f = 'x+y', x0 = '0', yg0 = '1', h = '0.1', xn = '0.3' }, 'euler', 1.362 },
    { 'demodels', { type = 'related', rel = '4/3*pi*r^3', rate = '10', at = '5' }, 'rate', 0.0318310 },
+   -- functions (Maths Methods)
+   { 'params', { f = 'a*x^3+b*x^2+c', c1 = 'f(1)=3', c2 = "f'(2)=0", c3 = '(0,1)' }, 'param_a', -1 },
+   { 'params', { f = 'a*x^3+b*x^2+c', c1 = 'f(1)=3', c2 = "f'(2)=0", c3 = '(0,1)' }, 'param_b', 3 },
+   { 'params', { f = 'a/(x-b)+c', c1 = 'asymptote x=2', c2 = 'asymptote y=3', c3 = '(3,5)' }, 'param_a', 2 },
+   { 'params', { f = 'a*x^2+b*x', c1 = 'tangent y=2x+1 at x=1' }, 'param_b', 4 },
+   { 'transform', { f = 'x^2', g = '-2f(3x-6)+4', pt = '(1,1)' }, 'b', -2 },
+   { 'transform', { f = 'x^2', g = '-2f(3x-6)+4', pt = '(1,1)' }, 'image.x', 2.3333333 },
+   { 'transform', { f = 'sqrt(x)', g = '2sqrt(3-x)+1' }, 'n', -1 },
+   { 'transform', { f = 'x^2', g = 'x^2-2x+3' }, 'c', 2 },
+   { 'simul', { e1 = 'kx+2y=k', e2 = '2x+(k-3)y=k-2' }, 'none', -1 },
+   { 'simul', { e1 = 'kx+2y=k', e2 = '2x+(k-3)y=k-2' }, 'many', 4 },
+   { 'simul', { e1 = 'x+y+z=1', e2 = 'x+2y+3z=2', e3 = '2x+3y+kz=3' }, 'many', 4 },
+   { 'proportion', { p = '0.3', n = '50', event = 'P>0.36' }, 'prob', 0.1405599 },
+   { 'proportion', { n = '100', x = '24', c = '95' }, 'lo', 0.1562932 },
+   { 'proportion', { e = '0.03', c = '95' }, 'n', 1068 },
 }
 
 local function value_of(R, key)

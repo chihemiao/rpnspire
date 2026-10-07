@@ -1,34 +1,93 @@
-# VCE Specialist Maths toolkit
+# VCE Maths toolkit (Methods + Specialist, tech active)
 
-A TI-Nspire CX II CAS Lua program for VCE Specialist Mathematics (tech-active) calculus, mechanics, probability and statistics questions. You type in the values you know, press **enter**, and it fills in everything that can be worked out. It shows exact values first, and each answer comes with brief working laid out the way VCE marking schemes expect.
+A TI-Nspire CX II CAS Lua program for the technology-active Exam 2 of VCE **Mathematical Methods** (MM) and **Specialist Mathematics** (SM). You type in what the question gives and it fills in everything that can be worked out: exact values first, each answer with brief working laid out the way VCE marking schemes expect, and graphs where they help.
 
 The toolkit ships three ways:
 
 - `vce.tns`: a standalone document. Open it and the toolkit starts.
-- `vce_zh.tns`: the same toolkit in bilingual mode (中英双语). The interface, field labels and hints, notes, menus, help and the name of every result (for example *variance 方差*, *Type II error 第二类错误*) appear in Chinese and English. The working steps stay in English, the language of the VCE exam. You can switch language in either document under **menu › Settings › Language**; the choice is saved with the document.
-- `rpn.tns`: rpnspire with the toolkit built in. Press <kbd>.</kbd> <kbd>a</kbd> and choose **VCE Specialist toolkit**. With **Send to RPN stack** in the context menu you can push a result onto the rpnspire stack.
+- `vce_zh.tns`: the same toolkit in bilingual mode (中英双语). The interface, field labels and hints, notes, menus, help and the name of every result (for example *variance 方差*, *Type II error 第二类错误*) appear in Chinese and English. The working steps stay in English, the language of the VCE exam. You can switch language in either document under **Settings › Language**; the choice is saved with the document.
+- `rpn.tns`: rpnspire with the toolkit built in. Press <kbd>.</kbd> <kbd>a</kbd> and choose **VCE Maths toolkit**. With **Send to RPN stack** in the context menu you can push a result onto the rpnspire stack.
 
-> Status: the solvers are tested on a desktop against a numeric CAS mock (`testcas.lua`), and the bundled document is smoke-tested in a TI-like Lua 5.1 sandbox. The real TI CAS (exact output, syntax) still has to be checked on a handheld or in the TI-Nspire CX CAS software. Run **Help › Self-test** once on your calculator: it solves 41 known problems and reports any that fail.
+> Status: the solvers are tested on a desktop against a numeric CAS mock (`testcas.lua`), and the bundled document is smoke-tested in a TI-like Lua 5.1 sandbox. The real TI CAS (exact output, syntax) still has to be checked on a handheld or in the TI-Nspire CX CAS software. Run **Help › Self-test** once on your calculator: it solves 55 known problems and reports any that fail.
+
+## Getting started: 3 steps
+
+1. **Pick a topic** on the home screen. Press its number (1–9) or move to it and press enter.
+2. **Type what the question gives** into the boxes. Leave the unknowns empty.
+3. **Read the answers.** They appear at once in the green **Answers** area. The working is underneath.
+
+Not sure what to type? An empty problem has a **Try an example** button that fills in a sample question so you can see how the boxes are used.
+
+## Built for easy reading
+
+The layout assumes that any student may have dyslexia or ADHD:
+
+- **Few choices per screen.** The home screen has nine topics with one short line each. All of Probability is a single topic; you choose the kind of question from a numbered list.
+- **One thing at a time.** In Probability, step 1 is to choose the kind of question; only its boxes are then shown. In *Find unknown constants*, the number of condition boxes matches the number of unknowns.
+- **Always clear where you are.** The selected row has a blue bar on its left. Input boxes are outlined so you can see where to type, and the hint line at the bottom names the next key to press.
+- **Answers stand out.** Answers sit on a green background, directly under the inputs; the working follows below them. After **Try an example**, the screen jumps to the answers.
+- **Calm colours.** A soft cream page with dark grey text, and notes in tinted boxes with an icon: **i** for information, **!** for a warning, **×** for an error. **Settings › Colours** switches to plain white.
+- **Short words.** Field hints show a typical input such as `kx+2y=3`, and sentence answers such as transformations wrap onto several lines instead of running off the screen.
+
+## Course marks: MM and SM
+
+Each topic carries a badge, also shown in the title bar of an open problem:
+
+- **MM** (teal): Mathematical Methods Units 3 & 4.
+- **SM** (purple): Specialist Mathematics Units 3 & 4.
+- **MM SM**: used in both.
+
+Both subjects have a technology-active Exam 2, where this toolkit is allowed.
+
+| # | Topic | Course | Notes |
+|---|-------|--------|-------|
+| 1 | Function graph & features | MM SM | |
+| 2 | Find unknown constants | MM SM | |
+| 3 | Transformations of graphs | MM | |
+| 4 | Simultaneous equations with a parameter | MM | |
+| 5 | Area, volume, arc length, surface area | MM SM | area under and between curves is MM; volumes, arc length and surface area are SM |
+| 6 | Differential equation models | SM | |
+| 7 | Constant acceleration (SUVAT) | SM | |
+| 8 | Kinematics | SM | |
+| 9 | Probability & statistics | MM SM | see the next table |
+
+Kinds of question under Probability & statistics:
+
+| # | Kind | Course |
+|---|------|--------|
+| 1 | Normal distribution | MM |
+| 2 | Normal: find μ and σ | MM |
+| 3 | Binomial | MM |
+| 4 | Discrete random variable | MM |
+| 5 | Probability density function | MM |
+| 6 | Sample proportion & CI | MM |
+| 7 | Sample mean & CI | SM |
+| 8 | Linear combinations | SM |
+| 9 | Hypothesis test | SM |
 
 ## Solvers
 
-Solvers are grouped on the home screen: calculus first, then mechanics, then probability and statistics. Digits open solvers 1–10 directly (0 is the tenth); the last three are opened from the list or from **menu › Solvers**.
+| Solver | What you can enter | What you get |
+|--------|--------------------|--------------|
+| Function graph | f(x), x window, optional y window; show/hide choices for asymptotes, turning points, inflection points, intercepts, discontinuities and labels | <ul><li>vertical, horizontal and oblique (or curved) asymptotes</li><li>stationary points classified as max, min or stationary inflection</li><li>points of inflection and intercepts</li><li>holes, jumps and endpoints</li><li>points where f is not differentiable (corners, cusps, vertical tangents)</li><li>f′ and f″</li><li>an annotated graph</li></ul> |
+| Find unknown constants | f(x) with letters (`a*x^3+b*x^2+c`, `a/(x-b)+c`, `k*e^(-x)`); one condition per box: `f(1)=3`, `f'(2)=0`, `f''(0)=0`, `(2,5)` (passes through), `tp(1,2)` or `max (1,2)` (turning point), `poi (0,1)` (inflection), `tangent y=2x+1 at x=1`, `asymptote x=2` / `asymptote y=3`, or any equation such as `integral(f(x),x,0,1)=2` | <ul><li>the equation from each condition</li><li>the simultaneous solution (every solution when there are several)</li><li>f(x) with the values substituted</li><li>a check of every condition</li><li>a graph with the given points, the tangent and the asymptotes</li></ul> It asks for more conditions when there are fewer than unknowns. |
+| Transformations | f(x) and the image, either written with f (`-2f(3x-6)+4`) or as a rule (`3(x-1)^2+2`, `2sqrt(3-x)+1`); optional point `(1,1)` | <ul><li>A, n, b and c in y = A f(n(x + b)) + c (with f(3x−6) rewritten as f(3(x−2)))</li><li>the transformations in VCE order (dilations, reflections, then translations) in exam wording</li><li>the mapping (x, y) → (x/n − b, Ay + c) and its inverse</li><li>the image of the point</li><li>the rule of the image</li><li>both graphs with the point and its image</li></ul> |
+| Simultaneous equations | two equations in x, y (or three in x, y, z) with one parameter, e.g. `kx+2y=k`, `2x+(k-3)y=k-2` | <ul><li>the matrix form and its determinant (factorised)</li><li>the values where det = 0</li><li>the unique solution in terms of k</li><li>for each det = 0 value, the reduced equations and whether there is no solution (parallel lines, inconsistent planes) or infinitely many, with the general solution in terms of λ (and μ)</li></ul> Without a parameter it simply solves the system. |
+| Area, volume, arc length, surface area | y = f(x), x = g(y) or parametric x(t), y(t); optional second curve; limits; axis of rotation | <ul><li>area (split where the curve crosses the axis or the curves cross) and the signed integral</li><li>volume by discs/washers, or by the inverse function and shells for the other axis</li><li>arc length and surface area</li><li>a shaded graph</li></ul> |
+| DE models | model: growth/decay, Newton's cooling, logistic, mixing (tank), general dy/dx, related rates; initial value, a second data point or half-life/doubling time; "find" (`t=10`, `N=200`) | <ul><li>the DE and its solution, k, values and times</li><li>doubling time or half-life, and the limiting value</li><li>logistic point of fastest growth and maximum rate</li><li>mixing amount and concentration (variable volume too)</li><li>deSolve result, Euler table and a slope field</li><li>related-rates chain rule</li><li>a graph</li></ul> |
+| SUVAT | any three of s, u, v, a, t | the other two (both roots when there are two, negative t rejected) |
+| Kinematics | a(t), a(v), a(x), v(t), v(x), v²(x) or x(t), which may contain an unknown constant k; known state t₀, x₀, v₀ (optional); conditions in "also" (`x(2)=5`, `a=-3.5 when v=7`, `a(7)=-3.5`, several separated by `;`); "find when" (`t=3`, `v=0`, `x=5`, `a=0`); time interval | <ul><li>the derived relations (v(t), x(t), v(x), t(v), x(v), ...) with their domains</li><li>unknown constants and terminal velocity</li><li>values at the requested instant</li><li>displacement and distance (split at turning points)</li><li>average velocity and speed</li><li>without an initial state, the general solution with +c</li></ul> |
+| Normal distribution | μ, σ or σ², event (`45<X<55`, `X>k`, `X>60\|X>50`), Pr, area | probability, inverse normal (k), unknown μ or σ, z-scores, x for a given area |
+| Normal: find μ and σ | two events with probabilities | μ, σ by solving the standardised equations simultaneously |
+| Binomial | any two of n, p, E(X), Var(X), SD(X); event; Pr (`>=0.95`) | exact probabilities (binomCdf/binomPdf working), conditional probabilities, smallest n, p from a probability |
+| Discrete random variable | x values, probabilities with unknowns (`0.1,k,2k,0.3`), E(X) | unknown constants, E(X), E(X²), Var(X), SD, median, mode, P(event) |
+| Probability density function | up to three pieces f(x) on [a, b] (∞ allowed), E(X), event, Pr, area | constant k (from total area 1), E(X), Var(X), SD, median, mode, P(a<X<b), x for an area, k in P(X<k)=p |
+| Sample proportion & CI | p, n, event for p̂ (`P>0.3`, `0.2<P<0.4`; `X>=20` for the count), count x or p̂, level, margin of error E, a given interval | <ul><li>E(p̂) = p, SD(p̂) = √(p(1−p)/n) and Var(p̂)</li><li>P(p̂ ...) exactly, as P(X ...) with X = np̂ ~ Bi(n, p)</li><li>the same probability by the normal approximation</li><li>p̂ = x/n and the approximate confidence interval p̂ ± z√(p̂(1−p̂)/n)</li><li>the sample size for a margin of error (with p̂ = ½ when unknown)</li><li>p̂, E, n or the level from a given interval</li></ul> |
+| Sample mean & CI | μ, σ (s), n, x̄, level, z, E, width, interval | SD(X̄), z, margin of error, confidence interval, sample size (rounded up), level from an interval, P(X̄ > a) |
+| Linear combinations | E, SD/Var of X and Y, W = `2X-3Y+4` or `X1+X2+X3`, event such as `X1+X2>2Y` | E(W), Var(W) (independent variables), normal probabilities |
+| Hypothesis test | μ₀, H₁ (<, >, ≠), σ, n, x̄, α, decision rule c, true μ | z, p-value, decision, critical x̄, P(Type I), P(Type II), power |
 
-| # | Solver | What you can enter | What you get |
-|---|--------|--------------------|--------------|
-| 1 | Function graph | f(x), x window, optional y window; show/hide choices for asymptotes, turning points, inflection points, intercepts, discontinuities and labels | vertical, horizontal and oblique (or curved) asymptotes; stationary points classified as max/min/stationary inflection; points of inflection; intercepts; holes, jumps, endpoints; points where f is not differentiable (corners, cusps, vertical tangents); f′ and f″; an annotated graph |
-| 2 | Area, volume, arc length, surface area | y = f(x), x = g(y) or parametric x(t), y(t); optional second curve; limits; axis of rotation | area (split where the curve crosses the axis or the curves cross) and the signed integral, volume by discs/washers or by the inverse function and shells for the other axis, arc length, surface area, a shaded graph |
-| 3 | DE models | model: growth/decay, Newton's cooling, logistic, mixing (tank), general dy/dx, related rates; initial value, a second data point or half-life/doubling time; "find" (`t=10`, `N=200`) | the DE and its solution, k, values and times, doubling/half-life, limiting value, logistic point of fastest growth and maximum rate, mixing amount and concentration (variable volume too), deSolve result and Euler table with a slope field, related-rates chain rule; a graph |
-| 4 | SUVAT | any three of s, u, v, a, t | the other two (both roots when there are two, negative t rejected) |
-| 5 | Kinematics | a(t), a(v), a(x), v(t), v(x), v²(x) or x(t), which may contain an unknown constant k; known state t₀, x₀, v₀ (optional); conditions in "also" (`x(2)=5`, `a=-3.5 when v=7`, `a(7)=-3.5`, several separated by `;`); "find when" (`t=3`, `v=0`, `x=5`, `a=0`); time interval | the derived relations (v(t), x(t), v(x), t(v), x(v), ...) with their domains, unknown constants, terminal velocity, values at the requested instant, displacement, distance (split at turning points), average velocity and speed; without an initial state, the general solution with +c |
-| 6 | Normal distribution | μ, σ or σ², event (`45<X<55`, `X>k`, `X>60\|X>50`), Pr, area | probability, inverse normal (k), unknown μ or σ, z-scores, x for a given area |
-| 7 | Normal: find μ and σ | two events with probabilities | μ, σ by solving the standardised equations simultaneously |
-| 8 | Binomial | any two of n, p, E(X), Var(X), SD(X); event; Pr (`>=0.95`) | exact probabilities (binomCdf/binomPdf working), conditional probabilities, smallest n, p from a probability |
-| 9 | Discrete random variable | x values, probabilities with unknowns (`0.1,k,2k,0.3`), E(X) | unknown constants, E(X), E(X²), Var(X), SD, median, mode, P(event) |
-| 0 | Probability density function | up to three pieces f(x) on [a, b] (∞ allowed), E(X), event, Pr, area | constant k (from total area 1), E(X), Var(X), SD, median, mode, P(a<X<b), x for an area, k in P(X<k)=p |
-| – | Linear combinations | E, SD/Var of X and Y, W = `2X-3Y+4` or `X1+X2+X3`, event such as `X1+X2>2Y` | E(W), Var(W) (independent variables), normal probabilities |
-| – | Sample mean & CI | μ, σ (s), n, x̄, level, z, E, width, interval | SD(X̄), z, margin of error, confidence interval, sample size (rounded up), level from an interval, P(X̄ > a) |
-| – | Hypothesis test | μ₀, H₁ (<, >, ≠), σ, n, x̄, α, decision rule c, true μ | z, p-value, decision, critical x̄, P(Type I), P(Type II), power |
+In Probability, enter on the **Type** box (or a click on it) opens the list of kinds again; left/right steps through them. Each kind keeps its own inputs, so switching away and back loses nothing.
 
 ### Kinematics formulas and domains
 
@@ -76,6 +135,7 @@ Exact values are shown where the CAS finds them. Points it finds only numericall
 - Numbers, fractions and CAS expressions all work: `1/3`, `√(2)`, `e^(-0.5x)`, `inf` (∞), `pi`.
 - **Functions from other pages** of the same problem work too: `f11(t)` as an acceleration, `f11(2)` as a value. Press ctrl+menu on a field and choose **Insert document function** to list them.
 - Leave unknowns empty. In an event, an unknown bound is any letter: `X<k`, `50-c<X<50+c`.
+- In *Find unknown constants*, *Transformations* and *Simultaneous equations*, `kx` means k·x and `k(x-1)` means k·(x−1); the box shows the product so you can check it.
 - Single letters in kinematics, PDF and discrete inputs are local symbols, so a stored document variable called `x` or `k` cannot interfere.
 - Calculations use radians and real numbers whatever the document settings, using `math.setEvalSettings` when the OS supports it.
 
@@ -83,10 +143,11 @@ Exact values are shown where the CAS finds them. Points it finds only numericall
 
 | Key | Action |
 |-----|--------|
-| digits on the home screen | open solver 1–9, 0 (the tenth) |
+| digits on the home screen | open topic 1–9 |
+| digits in a list of kinds | choose that kind (Probability step 1) |
 | up / down | move between rows |
 | typing | edits the selected field (a preview shows it in 2D, like the CAS) |
-| enter | solve and move to the next field; on a result it switches **exact ⇄ decimal**; on a derived formula (e.g. x(v)) it opens the working for that formula only (esc returns) |
+| enter | solve and move to the next field; on a result it switches **exact ⇄ decimal**; on a derived formula (e.g. x(v)) it opens the working for that formula only (esc returns); on a choice with many options (Probability's Type) it opens the list |
 | click (touchpad) | select a row; clicking a result switches exact ⇄ decimal |
 | left / right | move the cursor in a field, change a choice, switch a result or scroll a long answer |
 | tab / shift+tab | next / previous field |
@@ -104,7 +165,15 @@ Each problem you open is kept in the history (up to 60), together with its input
 
 ## Settings
 
-Under **menu › Settings** you can choose 2–6 decimal places for decimal answers and a small, normal or large font. Decimal places affect display only; values keep full precision. Use **All exact / All decimal** to switch every result at once.
+**Settings** on the home screen (also **menu › Settings › All settings**) shows every setting on one screen; left/right changes a setting and it applies at once:
+
+- decimal places (2–6) for decimal answers; values keep full precision, so this affects display only;
+- whether answers start exact or decimal;
+- text size (small, normal or large);
+- colours (soft cream or plain white);
+- language (English, or Chinese + English).
+
+Settings are saved with the document. Use **All exact / All decimal** in the menu to switch every result at once.
 
 ## 中英双语版 (vce_zh.tns)
 
@@ -116,7 +185,12 @@ Under **menu › Settings** you can choose 2–6 decimal places for decimal answ
 
 ## Development
 
-- Solvers: `apps/vce/solvers/*.lua`, listed in `apps/vce/registry.lua`. Each solver declares fields and a `solve(inputs, report)` function that adds results, working lines and notes, and optionally sets `report.graph` to a plot spec.
+- Solvers: `apps/vce/solvers/*.lua`, listed in `apps/vce/registry.lua`.
+  - Each solver declares fields and a `solve(inputs, report)` function. It adds results, working lines and notes, and can set `report.graph` to a plot spec.
+  - `registry.list` holds every solver. `registry.home` is the home screen, where `registry.probability` is a group made with `apps/vce/solvers/group.lua`; a group stores member inputs as `<member>.<field>`.
+  - The registry also gives each solver its course (`MM`, `SM` or both) and its one-line home blurb.
+  - A field with `implicit = true` reads `kx` as k·x.
+  - A result with `text = true` is a sentence answer.
 - Graphs: `apps/vce/numeric.lua` compiles CAS expressions into Lua functions for fast sampling; `ui/plot.lua` draws a plot spec (curves, asymptotes, points, shading, slope field); `views/graphview.lua` is the full-screen trace/zoom view.
 - CAS bridge: `apps/vce/cas.lua`. Formatting: `apps/vce/fmt.lua`. Event parser: `apps/vce/event.lua`.
 - UI: `views/sheet.lua` holds the worksheet rows; `ui/mathbox.lua` is the 2D pretty printer; `apps/vce/app.lua` handles screens, menu, history and persistence.

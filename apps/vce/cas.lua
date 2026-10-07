@@ -348,7 +348,10 @@ cas.scan = scan
 --   q9<x>  -> x  (local lower case symbol)
 --   q7<x>  -> X  (local upper case symbol)
 --   q8<x>  -> x  (dummy integration variable)
+local GREEK = { q8l = '\206\187', q8m = '\206\188' } -- λ, μ (free parameters)
+
 function cas.display_name(word)
+   if GREEK[word] then return GREEK[word] end
    local p, l = word:match('^q([789])(%a%w*)$')
    if p then
       if p == '7' then return l:upper() end
@@ -403,7 +406,8 @@ end
 ---@param str string
 ---@param map? table  Rename map for identifiers (lower case keys)
 ---@param case? boolean Case sensitive rename map
-function cas.input(str, map, case)
+---@param implicit? boolean Read 'kx' as k*x and 'k(x-1)' as k*(x-1) (needs map)
+function cas.input(str, map, case, implicit)
    if not str then return nil end
    str = str:match('^%s*(.-)%s*$')
    if str == '' then return nil end
@@ -432,7 +436,21 @@ function cas.input(str, map, case)
    scan(str, function(kind, text, nextc)
       local key = case and text or text:lower()
       if kind == 'id' then
-         if nextc ~= '(' and map and map[key] then
+         if implicit and map and #text > 1 and nextc ~= '(' and not map[key] and not aliases[key]
+            and not BUILTIN[key] and not WORDS[key] and text:match('^%a+$') then
+            -- 'kx' -> k*x when every letter is a known symbol
+            local parts = {}
+            for ch in text:gmatch('.') do
+               local k2 = case and ch or ch:lower()
+               local r = map[k2] or aliases[k2]
+               if not r then parts = nil break end
+               table.insert(parts, r)
+            end
+            if parts then text = table.concat(parts, '*') end
+         elseif implicit and map and nextc == '(' and #text == 1 and map[key] then
+            -- 'k(x-1)' -> k*(x-1): single letters are symbols here, not functions
+            text = map[key] .. '*'
+         elseif nextc ~= '(' and map and map[key] then
             text = map[key]
          elseif nextc ~= '(' and aliases[key] then
             text = aliases[key]

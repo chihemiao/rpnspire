@@ -1,21 +1,24 @@
 -- Scrollable worksheet view used by the VCE toolkit.
 --
 -- Rows (tables) are drawn top to bottom. Kinds:
---   header  { text }                         section title (not selectable)
+--   header  { text, style }                  section title (not selectable); style 'answers'
 --   input   { id, label, text, hint }        editable field (type to edit)
 --   choice  { id, label, options, index }    option list (left/right/enter)
---   result  { label, exact, mode }           result; enter/click toggles exact/decimal
+--   result  { label, exact, mode, prose }    result; enter/click toggles exact/decimal
+--                                            (prose: a sentence, wrapped, no toggle)
 --   step    { text, num }                    working line (text with `math`)
---   note    { text, kind }                   info/warn/error text
---   link    { title, desc, key }             menu entry (enter/click activates)
+--   note    { text, level }                  info/warn/error box with an icon
+--   link    { title, desc, key, badges }     menu entry (enter/click activates)
 --   math    { m }                            centred display maths
 --   graph   { spec, labels }                 plot (enter/click opens full screen)
 --   text    { text }                         paragraph (help)
+--   legend  { items = { {badge, text} } }    course badges explained (MM, SM)
 --
 -- Callbacks (assign on the instance):
 --   on_commit(row)            input text changed (row.text updated)
 --   on_submit(row)            enter pressed on an input
 --   on_choice(row)            choice changed
+--   on_pick(row)              enter on a choice with many options (show a list)
 --   on_activate(row)          enter/click on link or graph
 --   on_toggle(row)            result toggled
 --   on_escape()               escape (nothing to cancel)
@@ -36,26 +39,55 @@ ui.sheet = class(ui.view)
 
 local floor, max, min = math.floor, math.max, math.min
 
+-- Colours. 'comfort' (default) is a soft cream page with dark grey text,
+-- easier on the eyes for long reading (dyslexia friendly); 'plain' is white.
+local PALETTES = {
+   comfort = {
+      bg = 0xFBF8EF, text = 0x1E1E1E, field = 0xFFFFFF, field_border = 0xC9C3B4,
+      header_bg = 0xEAE5D8, answer_bg = 0xEAF4E6, answers_bg = 0xCFE6C8,
+   },
+   plain = {
+      bg = 0xFFFFFF, text = 0x000000, field = 0xFFFFFF, field_border = 0xC8C8C8,
+      header_bg = 0xE6E6E6, answer_bg = 0xF0F7EE, answers_bg = 0xD6EBD0,
+   },
+}
+
 local C = {
-   bg = 0xFFFFFF,
+   bg = 0xFBF8EF,
    sel = 0xD6E9FF,
-   sel_border = 0x3070C0,
-   header_bg = 0xE6E6E6,
-   header = 0x404040,
+   sel_border = 0x2F6FD0,
+   header_bg = 0xEAE5D8,
+   header = 0x3A3A3A,
+   answers = 0x1E5A1E,
+   answers_bg = 0xCFE6C8,
+   answer_bg = 0xEAF4E6,
    label = 0x2A4E7A,
-   hint = 0x9A9A9A,
+   hint = 0x8F8F8F,
    caption = 0x46698C,
-   text = 0x000000,
+   text = 0x1E1E1E,
    caret = 0xE00000,
-   info = 0x5A5A5A,
-   warn = 0xB86000,
-   error = 0xC00000,
+   info = 0x4A4A4A,
+   warn = 0x9A5000,
+   error = 0xB00000,
+   info_bg = 0xE8EEF6,
+   warn_bg = 0xFCEFD6,
+   error_bg = 0xFBE3E3,
    num = 0x8A8A8A,
    approx = 0x1F6FB2,
    link_key = 0x2A4E7A,
    field = 0xFFFFFF,
+   field_border = 0xC9C3B4,
+   pill = 0xDCE8F7,
+   badge = { MM = 0x00796B, SM = 0x6A3FA0 },
+   badge_text = 0xFFFFFF,
 }
 ui.sheet.colors = C
+
+function ui.sheet.set_palette(name)
+   local pal = PALETTES[name] or PALETTES.comfort
+   for k, v in pairs(pal) do C[k] = v end
+end
+ui.sheet.palettes = PALETTES
 
 -- UTF-8 helpers -------------------------------------------------------------------
 
@@ -438,6 +470,11 @@ function ui.sheet:layout_row(gc, r, W)
          L.h = max(L.label.h, L.value.h) + 2 * PAD
       end
       L.vw = vw
+   elseif k == 'result' and r.prose then
+      -- a sentence answer (e.g. '1. Dilation by a factor of 2 from the x-axis')
+      L.content = stack(seg_lines(gc, report.segments((r.label or '') .. '  ' .. (r.exact or '')), S, W - 2 * PAD), 2)
+      L.term = r.term and mb.text(r.term, mb.snap(max(7, S - 3)), gc) or nil
+      L.h = L.content.h + 2 * PAD + (L.term and L.term.h or 0)
    elseif k == 'result' then
       local label = stack(seg_lines(gc, report.segments(r.label or ''), S, W * 0.5), 0)
       local val = self.value_text and self:value_text(r) or r.exact or ''
@@ -466,19 +503,39 @@ function ui.sheet:layout_row(gc, r, W)
    elseif k == 'step' then
       local numw = r.num and mb.text(r.num .. '.', small, gc).w + 4 or 0
       L.numw = numw
-      L.content = stack(seg_lines(gc, report.segments(r.text or ''), r.section and small or S, W - 2 * PAD - numw), 2)
-      L.h = L.content.h + 2 * PAD
-   elseif k == 'note' or k == 'text' then
-      L.content = stack(seg_lines(gc, report.segments(r.text or ''), k == 'note' and small or S, W - 2 * PAD), 1)
+      L.content = stack(seg_lines(gc, report.segments(r.text or ''), r.section and small or S, W - 2 * PAD - numw), 3)
+      L.h = L.content.h + 2 * PAD + 1
+   elseif k == 'note' then
+      L.content = stack(seg_lines(gc, report.segments(r.text or ''), small, W - 4 * PAD - 14), 2)
+      L.h = L.content.h + 4 * PAD
+   elseif k == 'text' then
+      L.content = stack(seg_lines(gc, report.segments(r.text or ''), S, W - 2 * PAD), 2)
       L.h = L.content.h + 2 * PAD
    elseif k == 'link' then
-      L.title = stack(seg_lines(gc, { { t = r.title or '' } }, S, W - 26, nil, 'b'), 0)
+      -- course badges (MM / SM) right of the title
+      local bw = 0
+      if r.badges and #r.badges > 0 then
+         L.badges = {}
+         for _, b in ipairs(r.badges) do
+            local t = mb.text(b, 7, gc, 'b')
+            table.insert(L.badges, { text = b, box = t, w = t.w + 6 })
+            bw = bw + t.w + 8
+         end
+      end
+      L.bw = bw
+      L.title = stack(seg_lines(gc, { { t = r.title or '' } }, S, W - 26 - bw, nil, 'b'), 0)
       L.desc = r.desc and stack(seg_lines(gc, report.segments(r.desc), small, W - 26), 0)
       L.key = r.key and mb.text(r.key, small, gc, 'b')
-      L.h = L.title.h + (L.desc and L.desc.h or 0) + 2 * PAD
+      L.h = L.title.h + (L.desc and L.desc.h or 0) + 2 * PAD + 1
    elseif k == 'math' then
       L.content = mb.layout(r.m or '', S, gc)
       L.h = L.content.h + 2 * PAD + 2
+   elseif k == 'legend' then
+      L.items = {}
+      for _, it in ipairs(r.items or {}) do
+         table.insert(L.items, { badge = it[1], box = mb.text(it[1], 7, gc, 'b'), text = mb.text(it[2], small, gc) })
+      end
+      L.h = mb.text('Ag', small, gc).h + 2 * PAD + 2
    elseif k == 'graph' then
       local fh = self:frame().height
       L.h = r.height or max(90, floor(fh * 0.66))
@@ -564,15 +621,22 @@ end
 
 function ui.sheet:draw_row(g, r, L, x, y, W, selected)
    local k = r.kind
+   if k == 'result' and not selected then
+      set_color(g, C.answer_bg)
+      g:fillRect(x, y, W, L.h)
+   end
    if selected then
       set_color(g, C.sel)
       g:fillRect(x, y, W, L.h)
+      -- focus bar on the left: always clear where you are
+      set_color(g, C.sel_border)
+      g:fillRect(x, y, 3, L.h)
    end
 
    if k == 'header' then
-      set_color(g, C.header_bg)
+      set_color(g, r.style == 'answers' and C.answers_bg or C.header_bg)
       g:fillRect(x, y, W, L.h)
-      set_color(g, C.header)
+      set_color(g, r.style == 'answers' and C.answers or C.header)
       draw_stack(L.content, g, x + PAD, y + 2)
    elseif k == 'input' or k == 'choice' then
       set_color(g, C.label)
@@ -611,14 +675,35 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
             mb.draw(L.preview, g, vx + 3, y + PAD + fh + 2)
          end
       else
-         set_color(g, L.hint and C.hint or C.text)
          local vy = y + PAD + floor((L.h - 2 * PAD - L.value.h) / 2)
+         if k == 'input' then
+            -- a box shows where to type
+            set_color(g, C.field)
+            g:fillRect(vx, y + PAD - 1, L.vw, L.h - 2 * PAD + 1)
+            set_color(g, C.field_border)
+            g:drawRect(vx, y + PAD - 1, L.vw, L.h - 2 * PAD + 1)
+         else
+            set_color(g, C.pill)
+            g:fillRect(vx, y + PAD - 1, math.min(L.vw, L.value.w + 6), L.h - 2 * PAD + 1)
+         end
+         set_color(g, L.hint and C.hint or C.text)
          local vbox = L.value
          local cx = vx + 3
          if vbox.w > L.vw - 4 and selected then
             cx = cx - self.hscroll
          end
+         g:clipRect('set', vx + 1, y, L.vw - 1, L.h)
          mb.draw(vbox, g, cx, vy)
+         g:clipRect('reset')
+         local f = self:frame()
+         g:clipRect('set', f.x, f.y, f.width + 1, f.height + 1)
+      end
+   elseif k == 'result' and r.prose then
+      set_color(g, C.text)
+      draw_stack(L.content, g, x + PAD, y + PAD)
+      if L.term then
+         set_color(g, C.hint)
+         mb.draw(L.term, g, x + W - PAD - L.term.w, y + L.h - PAD - L.term.h)
       end
    elseif k == 'result' then
       local lx = x + PAD
@@ -671,8 +756,28 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
       if L.content.w > W - 2 * PAD - L.numw and selected then cx = cx - self.hscroll end
       draw_stack(L.content, g, cx, y + PAD)
    elseif k == 'note' then
-      set_color(g, C[r.kind_color or r.level or 'info'] or C.info)
-      draw_stack(L.content, g, x + PAD, y + PAD)
+      local level = r.level or 'info'
+      set_color(g, C[level .. '_bg'] or C.info_bg)
+      g:fillRect(x + PAD, y + PAD, W - 2 * PAD, L.h - 2 * PAD)
+      local col = C[level] or C.info
+      set_color(g, col)
+      g:fillRect(x + PAD, y + PAD, 2, L.h - 2 * PAD)
+      -- icon: i (info), ! (warning), x (error)
+      local cx, cy = x + PAD + 9, y + 2 * PAD + 5
+      g:fillArc(cx - 5, cy - 5, 11, 11, 0, 360)
+      set_color(g, 0xFFFFFF)
+      if level == 'error' then
+         g:drawLine(cx - 2, cy - 2, cx + 2, cy + 2)
+         g:drawLine(cx - 2, cy + 2, cx + 2, cy - 2)
+      elseif level == 'warn' then
+         g:fillRect(cx, cy - 3, 1, 4)
+         g:fillRect(cx, cy + 2, 1, 1)
+      else
+         g:fillRect(cx, cy - 3, 1, 1)
+         g:fillRect(cx, cy - 1, 1, 4)
+      end
+      set_color(g, col)
+      draw_stack(L.content, g, x + PAD + 17, y + 2 * PAD)
    elseif k == 'text' then
       set_color(g, C.text)
       draw_stack(L.content, g, x + PAD, y + PAD)
@@ -686,6 +791,19 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
       end
       set_color(g, C.text)
       draw_stack(L.title, g, tx, y + PAD)
+      if L.badges then
+         local bx = x + W - PAD - 2
+         local th = L.title.lines[1].h
+         for i = #L.badges, 1, -1 do
+            local b = L.badges[i]
+            bx = bx - b.w
+            set_color(g, C.badge[b.text] or C.label)
+            g:fillRect(bx, y + PAD + 1, b.w, th - 2)
+            set_color(g, C.badge_text)
+            mb.draw(b.box, g, bx + 3, y + PAD + 1 + floor((th - 2 - b.box.h) / 2))
+            bx = bx - 2
+         end
+      end
       if L.desc then
          set_color(g, C.info)
          draw_stack(L.desc, g, tx, y + PAD + L.title.h)
@@ -706,6 +824,19 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
          g:drawRect(gr.x - 1, gr.y - 1, gr.width + 2, gr.height + 2)
          g:drawRect(gr.x - 2, gr.y - 2, gr.width + 4, gr.height + 4)
       end
+   elseif k == 'legend' then
+      local lx = x + PAD
+      for _, it in ipairs(L.items) do
+         local bw = it.box.w + 6
+         local bh = it.text.h
+         set_color(g, C.badge[it.badge] or C.label)
+         g:fillRect(lx, y + PAD + 1, bw, bh)
+         set_color(g, C.badge_text)
+         mb.draw(it.box, g, lx + 3, y + PAD + 1 + floor((bh - it.box.h) / 2))
+         set_color(g, C.info)
+         mb.draw(it.text, g, lx + bw + 3, y + PAD + 1)
+         lx = lx + bw + it.text.w + 12
+      end
    elseif k == 'math' then
       set_color(g, C.text)
       local cx = x + max(PAD, floor((W - L.content.w) / 2))
@@ -724,7 +855,9 @@ end
 function ui.sheet:row_content_width(r)
    local L = r._lay
    if not L then return 0 end
-   if r.kind == 'result' then
+   if r.kind == 'result' and r.prose then
+      return 0
+   elseif r.kind == 'result' then
       return L.inline and (L.label.w + L.eq.w + L.value.w) or L.value.w
    elseif r.kind == 'step' then
       return L.content.w + L.numw
@@ -775,6 +908,7 @@ local function cycle(self, r, dir)
 end
 
 function ui.sheet:toggle(r)
+   if r.prose then return end
    r.mode = r.mode == 'approx' and 'exact' or 'approx'
    r._lay = nil
    self.hscroll = 0
@@ -846,7 +980,11 @@ function ui.sheet:on_enter_key()
       self:commit_edit()
       if self.on_submit then self:on_submit(r) end
    elseif r.kind == 'choice' then
-      cycle(self, r, 1)
+      if #r.options > 3 and self.on_pick then
+         self:on_pick(r)
+      else
+         cycle(self, r, 1)
+      end
    elseif r.kind == 'result' then
       -- formulas with their own working open it; other results switch
       -- exact <-> decimal (left/right still switch formulas)
@@ -896,7 +1034,11 @@ function ui.sheet:on_mouse_down(x, y)
    elseif r.kind == 'link' or (r.kind == 'graph' and was) then
       if self.on_activate then self:on_activate(r) end
    elseif r.kind == 'choice' and was then
-      cycle(self, r, 1)
+      if #r.options > 3 and self.on_pick then
+         self:on_pick(r)
+      else
+         cycle(self, r, 1)
+      end
    elseif r.kind == 'input' and self.edit and r._lay and r._lay.lw then
       -- place caret at the click position
       local f = self:frame()

@@ -269,4 +269,51 @@ key('enter_key')
 shot('22_kin_formula_working')
 key('escape')
 key('escape')
+
+-- New user flow: Probability is one entry; the kind of question comes first
+app.show_home()
+shot('23_home')
+key('char', '9')
+shot('24_prob_pick')
+key('char', '1')
+shot('25_prob_normal_empty')
+-- 'Try an example' fills in a sample question
+for i, r in ipairs(app.sheet.rows) do
+   if r.action and r.action[1] == 'example' then app.sheet:select(i) end
+end
+key('enter_key')
+shot('26_prob_normal_example')
+key('escape')
+
+app.new_problem('probability', { type = 'proportion', ['proportion.p'] = '0.3', ['proportion.n'] = '50',
+                                 ['proportion.event'] = 'P>0.36' })
+for _ = 1, 5 do key('down') end
+shot('27_proportion')
+key('escape')
+
+app.new_problem('params', { f = 'a*x^3+b*x^2+c', c1 = 'f(1)=3', c2 = "f'(2)=0", c3 = '(0,1)' })
+shot('28_params')
+for _ = 1, 9 do key('down') end
+shot('29_params_answers')
+key('escape')
+
+app.new_problem('transform', { f = 'x^2', g = '-2f(3x-6)+4', pt = '(1,1)' })
+for _ = 1, 4 do key('down') end
+shot('30_transform')
+for _ = 1, 8 do key('down') end
+shot('31_transform_steps')
+graph_row()
+key('enter_key')
+shot('32_transform_graph')
+key('escape')
+key('escape')
+
+app.new_problem('simul', { e1 = 'kx+2y=k', e2 = '2x+(k-3)y=k-2' })
+for _ = 1, 3 do key('down') end
+shot('33_simul')
+key('escape')
+
+app.show_settings()
+shot('34_settings')
+key('escape')
 print('ok')
