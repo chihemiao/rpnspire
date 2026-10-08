@@ -1,0 +1,44 @@
+[
+  {
+    "version": "2.1",
+    "date": "2026-10-08",
+    "en": [
+      "Two editions: vce.tns is English only, vce_zh.tns shows Chinese and English (and can switch to English).",
+      "The version is shown in the Help title bar (menu › Help), so you can compare it with this site."
+    ],
+    "zh": [
+      "分成两个版本：vce.tns 纯英文，vce_zh.tns 中英双语（也可以切换成纯英文）。",
+      "帮助页（menu › Help）的标题栏显示版本号，方便和网站上的最新版对比。"
+    ]
+  },
+  {
+    "version": "2.0",
+    "date": "2026-10-08",
+    "en": [
+      "New topics: find unknown constants, transformations of graphs, simultaneous equations with a parameter, sample proportion.",
+      "Simpler home screen: one Probability entry, MM / SM badges, larger text and calmer colours.",
+      "Kinematics: choose what to find (x, v, a or t); a note says which condition is missing.",
+      "Volumes of revolution with limits in y (y = 1 to y = 4) and letters such as a in the limits.",
+      "Asymptotes stay visible when they lie on an axis."
+    ],
+    "zh": [
+      "新增题型：求未知常数、函数图像变换、含参数的方程组、样本比例 p̂。",
+      "首页更简单：概率统计合成一个入口，标出 MM / SM，字更大、颜色更柔和。",
+      "运动学：可以直接选要求 x、v、a 还是 t；条件不够时会提示缺哪个条件。",
+      "旋转体体积支持 y 的范围（从 y=1 到 y=4），范围里可以有字母常数，比如 a。",
+      "渐近线和坐标轴重合时也能看见。"
+    ]
+  },
+  {
+    "version": "1.0",
+    "date": "2026-10-05",
+    "en": [
+      "First release: probability (normal, binomial, discrete, PDF, confidence intervals, hypothesis tests), SUVAT, kinematics, function graphs, areas and volumes, DE models.",
+      "Every answer comes with VCE-style working; switch any answer between exact and decimal."
+    ],
+    "zh": [
+      "第一个版本：概率统计（正态、二项、离散、概率密度、置信区间、假设检验）、匀加速 SUVAT、运动学、函数图像、面积与体积、微分方程模型。",
+      "每个答案都带 VCE 评分习惯的步骤；精确值和小数可以随时切换。"
+    ]
+  }
+]

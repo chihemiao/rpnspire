@@ -31,6 +31,8 @@ You type in the known values and it shows exact results (enter or a click switch
 
 It comes in two versions: the English-only `vce.tns` (`npm run build:vce`; no Chinese text and no language setting) and `vce_zh.tns` with Chinese (中英双语, `npm run build:vce-zh`; working steps stay in English). It is also inside `rpn.tns` (English) under <kbd>.</kbd><kbd>a</kbd> › *VCE Maths toolkit*. See [doc/vce.md](doc/vce.md).
 
+The website in `site/` offers both downloads and a changelog. It has step-by-step examples that run the real toolkit in the browser, and a feedback form. It deploys to Cloudflare (`npm run build:site`, `npm run test:site`). See [doc/site.md](doc/site.md).
+
 ## Install
 
 Use the latest build from the *GitHub actions* and put it under `MyWidgets` on your nspire CX.

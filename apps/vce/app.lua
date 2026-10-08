@@ -22,7 +22,7 @@ local T = i18n.t
 
 local A = {}
 
-A.VERSION = '2.0'
+A.VERSION = require 'apps.vce.version'
 A.settings = { dp = 4, font = 10, mode = 'exact', lang = nil, colors = 'comfort' }
 A.history = History.new()
 A.screen = 'home'

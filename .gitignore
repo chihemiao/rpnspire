@@ -8,3 +8,6 @@ vce_bundle.lua
 vce.tns
 vce_zh_bundle.lua
 vce_zh.tns
+/site/dist
+/site/node_modules
+/site/.wrangler

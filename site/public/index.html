@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-CN" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VCE Maths 工具箱 · TI-Nspire CX II CAS</title>
+<meta name="description" content="TI-Nspire CX II CAS toolkit for VCE Mathematical Methods and Specialist Mathematics: type what the question gives, get exact answers with VCE-style working. Chinese + English and English-only editions.">
+<meta name="theme-color" content="#24476b">
+<meta property="og:title" content="VCE Maths toolkit for the TI-Nspire CX II CAS">
+<meta property="og:description" content="Graphs, areas and volumes, kinematics, SUVAT, probability: type the givens, get the answers and the working.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css?v={{STAMP}}">
+<script>
+  // language before first paint: saved choice, else the browser's
+  (function () {
+    var l = null;
+    try { l = localStorage.getItem('lang'); } catch (e) { /* private mode */ }
+    if (l !== 'zh' && l !== 'en') l = /^zh/i.test(navigator.language || '') ? 'zh' : 'en';
+    document.documentElement.setAttribute('data-lang', l);
+    document.documentElement.lang = l === 'zh' ? 'zh-CN' : 'en';
+  })();
+</script>
+</head>
+<body>
+<a class="skip" href="#main"><span lang="zh">跳到正文</span><span lang="en">Skip to content</span></a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="logo" href="#top" aria-label="VCE Maths">
+      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="3" y="2" width="26" height="28" rx="5" fill="#24476b"/><rect x="7" y="6" width="18" height="11" rx="2" fill="#fbf8ef"/><path d="M9 14 C12 8, 15 8, 17 12 S21 15, 23 9" stroke="#2f6fb3" stroke-width="1.8" fill="none"/><circle cx="10" cy="22" r="1.6" fill="#fbf8ef"/><circle cx="16" cy="22" r="1.6" fill="#fbf8ef"/><circle cx="22" cy="22" r="1.6" fill="#fbf8ef"/><circle cx="10" cy="26.5" r="1.6" fill="#fbf8ef"/><circle cx="16" cy="26.5" r="1.6" fill="#fbf8ef"/><circle cx="22" cy="26.5" r="1.6" fill="#fbf8ef"/></svg>
+      <span>VCE Maths</span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#download"><span lang="zh">下载</span><span lang="en">Download</span></a>
+      <a href="#highlights"><span lang="zh">推荐功能</span><span lang="en">Highlights</span></a>
+      <a href="#topics"><span lang="zh">全部功能</span><span lang="en">All topics</span></a>
+      <a href="#feedback"><span lang="zh">反馈</span><span lang="en">Feedback</span></a>
+    </nav>
+    <div class="lang-switch" role="group" aria-label="Language">
+      <button type="button" data-set-lang="zh">中文</button>
+      <button type="button" data-set-lang="en">EN</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" id="top">
+  <div class="wrap hero-in">
+    <div class="hero-text">
+      <p class="eyebrow">TI-Nspire CX II CAS · Methods + Specialist · Exam 2</p>
+      <h1>
+        <span lang="zh">把已知填进去，<br>答案和步骤马上出来。</span>
+        <span lang="en">Type what the question gives.<br>Get the answers and the working.</span>
+      </h1>
+      <p class="lead">
+        <span lang="zh">给 VCE 数学 Methods 和 Specialist 用的 TI-Nspire 程序：函数图像、面积和体积、运动学、SUVAT、概率统计……不用记命令，按题目给的条件填空就行，步骤按 VCE 评分习惯来写。</span>
+        <span lang="en">A TI-Nspire document for VCE Mathematical Methods and Specialist Mathematics: graphs, areas and volumes, kinematics, SUVAT, probability and more. No commands to remember: fill in what the question gives, and the working is written the way VCE marking expects.</span>
+      </p>
+      <div class="hero-cta">
+        <a class="btn primary" href="#download"><span lang="zh">免费下载</span><span lang="en">Free download</span></a>
+        <a class="btn" href="#highlights"><span lang="zh">看看怎么用</span><span lang="en">See how it works</span></a>
+      </div>
+      <p class="hero-meta"><span class="ver">v{{VERSION}}</span> · <span lang="zh">更新于</span><span lang="en">updated</span> {{DATE}}</p>
+    </div>
+    <div class="hero-calc">
+      <div class="calc-frame">
+        <div class="calc" id="hero-calc" data-doc="vce"></div>
+      </div>
+      <p class="calc-tip">
+        <span lang="zh">这是真正的程序在网页里运行。点一下屏幕，然后用键盘或下面的按键试试（按数字打开题型，esc 返回）。</span>
+        <span lang="en">This is the real program running in your browser. Click the screen, then use your keyboard or the keys below (a number opens a topic, esc goes back).</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="download" aria-labelledby="download-h">
+  <div class="wrap">
+    <h2 id="download-h"><span lang="zh">下载</span><span lang="en">Download</span></h2>
+    <p class="section-lead">
+      <span lang="zh">两个版本功能完全一样，选一个就行。都是免费的。</span>
+      <span lang="en">Both editions do exactly the same maths. Pick one; both are free.</span>
+    </p>
+    <div class="dl-grid">
+      <article class="dl-card">
+        <div class="dl-flag" aria-hidden="true">中</div>
+        <h3><span lang="zh">中文版（中英双语）</span><span lang="en">Chinese edition (Chinese + English)</span></h3>
+        <p>
+          <span lang="zh">界面、提示、术语和帮助都是中文加英文；解题步骤保持英文，和考试一样。在 设置 › 语言 里可以换成纯英文。</span>
+          <span lang="en">Menus, hints, terms and help in Chinese and English; the working stays in English, like the exam. Settings › Language switches to English only.</span>
+        </p>
+        <a class="btn primary dl-btn" href="/downloads/vce_zh.tns" download="vce_zh.tns" data-dl="zh">
+          <span lang="zh">下载中文版</span><span lang="en">Download Chinese edition</span>
+          <small>vce_zh.tns · {{SIZE_ZH}}</small>
+        </a>
+      </article>
+      <article class="dl-card">
+        <div class="dl-flag" aria-hidden="true">EN</div>
+        <h3><span lang="zh">英文版</span><span lang="en">English edition</span></h3>
+        <p>
+          <span lang="zh">完全英文，没有任何中文字。适合只想看英文的同学，或要给老师、同学用。</span>
+          <span lang="en">Fully English with no Chinese text at all. Best if you only want English, or to share with teachers and classmates.</span>
+        </p>
+        <a class="btn primary dl-btn" href="/downloads/vce.tns" download="vce.tns" data-dl="en">
+          <span lang="zh">下载英文版</span><span lang="en">Download English edition</span>
+          <small>vce.tns · {{SIZE_EN}}</small>
+        </a>
+      </article>
+    </div>
+    <p class="dl-version">
+      <span lang="zh">最新版本</span><span lang="en">Latest version</span>
+      <strong>v<span data-version>{{VERSION}}</span></strong> · {{DATE}}
+      <span class="update-note" hidden data-update-note></span>
+    </p>
+
+    <div class="steps-grid">
+      <div class="howto">
+        <h3><span lang="zh">安装：3 步</span><span lang="en">Install in 3 steps</span></h3>
+        <ol class="big-steps">
+          <li>
+            <span lang="zh">下载上面的 <code>.tns</code> 文件。</span>
+            <span lang="en">Download a <code>.tns</code> file above.</span>
+          </li>
+          <li>
+            <span lang="zh">用数据线连上计算器，打开电脑上的 TI-Nspire CX Student Software 或免费的 TI-Nspire Computer Link，把文件拖进计算器的文件夹。</span>
+            <span lang="en">Connect the calculator, open TI-Nspire CX Student Software or the free TI-Nspire Computer Link, and drag the file onto the calculator.</span>
+          </li>
+          <li>
+            <span lang="zh">在计算器上 <kbd>home</kbd> › My Documents 打开它。第一次用时，在首页最下面运行一次 Self-test（自检），确认和你计算器的 CAS 配合正常。</span>
+            <span lang="en">On the calculator, open it from <kbd>home</kbd> › My Documents. The first time, run Self-test (bottom of the home screen) to check it with your calculator's CAS.</span>
+          </li>
+        </ol>
+      </div>
+      <div class="howto">
+        <h3><span lang="zh">更新</span><span lang="en">Updates</span></h3>
+        <ol class="big-steps">
+          <li>
+            <span lang="zh">看你手上的版本：<kbd>menu</kbd> › Help，标题栏右边会显示 <strong>v{{VERSION}}</strong> 这样的版本号。</span>
+            <span lang="en">Check your version: <kbd>menu</kbd> › Help shows it in the title bar, like <strong>v{{VERSION}}</strong>.</span>
+          </li>
+          <li>
+            <span lang="zh">比这里旧，就下载新文件，用同样的方法传到计算器上，替换旧文件。</span>
+            <span lang="en">If it is older than this page, download the new file and copy it over the old one the same way.</span>
+          </li>
+          <li>
+            <span lang="zh">想第一时间知道？在下面的反馈表里勾选“有新版本时通知我”。</span>
+            <span lang="en">Want to hear about updates? Tick “Tell me about new versions” in the feedback form below.</span>
+          </li>
+        </ol>
+        <details class="changelog">
+          <summary><span lang="zh">更新记录</span><span lang="en">What's new</span></summary>
+          <ul class="changes"><!--CHANGELOG--></ul>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="highlights" aria-labelledby="hl-h">
+  <div class="wrap">
+    <h2 id="hl-h"><span lang="zh">推荐功能</span><span lang="en">Highlights</span></h2>
+    <p class="section-lead">
+      <span lang="zh">这四个是最推荐的：每个都配了一道例题，左边是平时用 CAS 自己算要按的命令，右边是用这个程序怎么输入。按“下一步”就会一步一步演示。</span>
+      <span lang="en">Our top four. Each has an example question: on the left, the commands you would type into the CAS yourself; on the right, what you type into this program. Press “Next” to go step by step.</span>
+    </p>
+    <nav class="hl-tabs" aria-label="Highlights" id="hl-tabs"></nav>
+    <div id="hl-list" class="hl-list"></div>
+    <noscript><p><span lang="zh">演示需要开启 JavaScript。</span><span lang="en">The demos need JavaScript.</span></p></noscript>
+  </div>
+</section>
+
+<section class="band" id="topics" aria-labelledby="topics-h">
+  <div class="wrap">
+    <h2 id="topics-h"><span lang="zh">全部功能</span><span lang="en">All topics</span></h2>
+    <p class="section-lead">
+      <span lang="zh">首页就是这 9 个入口（按数字直接打开）。<span class="badge mm">MM</span> = Mathematical Methods，<span class="badge sm">SM</span> = Specialist Mathematics，都对应可以用计算器的 Exam 2。</span>
+      <span lang="en">The home screen has these 9 entries (press the number to open one). <span class="badge mm">MM</span> = Mathematical Methods, <span class="badge sm">SM</span> = Specialist Mathematics, both for the tech-active Exam 2.</span>
+    </p>
+    <ol class="topics"><!--TOPICS--></ol>
+    <p class="also">
+      <span lang="zh">每一题都会：给出精确值（按 enter 切换小数）、写出步骤、能画图的地方画图、按 ctrl+C 复制答案；做过的题自动保存在 History（历史）里，可以加标签，比如“2023 E2 Q5b”。</span>
+      <span lang="en">Every problem gives exact answers (enter switches to decimals), the working, a graph where it helps, and ctrl+C to copy. Problems are kept in History and can be tagged, e.g. “2023 E2 Q5b”.</span>
+    </p>
+
+    <div class="playground">
+      <div class="playground-text">
+        <h3><span lang="zh">在线试用</span><span lang="en">Try it online</span></h3>
+        <p>
+          <span lang="zh">随便点、随便输。键盘对应：<kbd>enter</kbd> 计算/下一格，<kbd>tab</kbd> 下一格，<kbd>esc</kbd> 返回，方向键移动，<kbd>F2</kbd> 打开 menu 菜单。手机上用屏幕下面的按键，<kbd>⌨</kbd> 打开键盘。</span>
+          <span lang="en">Click and type anything. Keys: <kbd>enter</kbd> solve / next box, <kbd>tab</kbd> next box, <kbd>esc</kbd> back, arrows move, <kbd>F2</kbd> opens the menu. On a phone use the keys under the screen; <kbd>⌨</kbd> opens the keyboard.</span>
+        </p>
+        <p class="note">
+          <span lang="zh">注意：网页里用的是简化的计算引擎，不是 TI 的 CAS。上面四道例题已经配好精确答案；你自己输入的题，有些结果只能显示小数，或者化简得不完整。装到计算器上用的是真正的 CAS。</span>
+          <span lang="en">Note: the web version uses a simplified maths engine, not the TI CAS. The four examples above have their exact answers built in; for your own questions some results may only show decimals or stay unsimplified. On the calculator it uses the real CAS.</span>
+        </p>
+        <button type="button" class="btn" data-reset="play-calc"><span lang="zh">↺ 重新开始</span><span lang="en">↺ Start again</span></button>
+      </div>
+      <div class="calc-frame">
+        <div class="calc" id="play-calc" data-doc="vce" data-lazy></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="feedback" aria-labelledby="fb-h">
+  <div class="wrap narrow">
+    <h2 id="fb-h"><span lang="zh">反馈</span><span lang="en">Feedback</span></h2>
+    <p class="section-lead">
+      <span lang="zh">好用、难用、哪道题算错了、想要什么新功能——都可以说。<strong>可长可短，十个字也可以。</strong></span>
+      <span lang="en">What works, what doesn't, a question it got wrong, a topic you want: tell us. <strong>Long or short, even ten words is great.</strong></span>
+    </p>
+    <form id="fb-form" class="fb" novalidate>
+      <div class="field">
+        <label for="fb-msg"><span lang="zh">想说的话</span><span lang="en">Your message</span> <span class="req" aria-hidden="true">*</span></label>
+        <textarea id="fb-msg" name="message" rows="5" required maxlength="5000"
+          data-ph-zh="比如：运动学很好用 / 第 3 步看不懂 / 希望加上复数……"
+          data-ph-en="e.g. Kinematics is great / step 3 is confusing / please add complex numbers…"></textarea>
+        <p class="hint"><span lang="zh">可长可短，十个字也可以。</span><span lang="en">Short is fine, even ten words.</span> <span class="count" data-count></span></p>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="fb-email"><span lang="zh">邮箱</span><span lang="en">Email</span> <span class="req" aria-hidden="true">*</span></label>
+          <input id="fb-email" name="email" type="email" required maxlength="200" autocomplete="email" inputmode="email" placeholder="you@example.com">
+          <p class="hint"><span lang="zh">只用来回复你，不会公开。</span><span lang="en">Only used to reply to you, never shown.</span></p>
+        </div>
+        <div class="field">
+          <label for="fb-name"><span lang="zh">名字</span><span lang="en">Name</span> <span class="opt"><span lang="zh">（可不填）</span><span lang="en">(optional)</span></span></label>
+          <input id="fb-name" name="name" type="text" maxlength="100" autocomplete="name">
+        </div>
+      </div>
+      <fieldset class="field">
+        <legend><span lang="zh">你用的是哪个版本？</span><span lang="en">Which edition do you use?</span> <span class="opt"><span lang="zh">（可不选）</span><span lang="en">(optional)</span></span></legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="edition" value="zh"> <span lang="zh">中文版</span><span lang="en">Chinese</span></label>
+          <label class="chip"><input type="radio" name="edition" value="en"> <span lang="zh">英文版</span><span lang="en">English</span></label>
+          <label class="chip"><input type="radio" name="edition" value="none"> <span lang="zh">还没装</span><span lang="en">Not installed yet</span></label>
+        </div>
+      </fieldset>
+      <label class="check"><input type="checkbox" name="notify" value="1"> <span lang="zh">有新版本时发邮件通知我</span><span lang="en">Tell me about new versions by email</span></label>
+      <div class="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <div class="fb-actions">
+        <button type="submit" class="btn primary"><span lang="zh">发送</span><span lang="en">Send</span></button>
+        <p class="fb-status" role="status" aria-live="polite" data-status></p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="band" id="faq" aria-labelledby="faq-h">
+  <div class="wrap narrow">
+    <h2 id="faq-h"><span lang="zh">常见问题</span><span lang="en">Questions</span></h2>
+    <details>
+      <summary><span lang="zh">考试里可以用吗？</span><span lang="en">Can I use it in the exam?</span></summary>
+      <p>
+        <span lang="zh">VCAA 的 Methods 和 Specialist Exam 2 允许带经批准的 CAS 计算器，而且不要求清空内存，所以计算器里的文档可以带进考场。规定每年可能有变化，请以 VCAA 和学校的最新通知为准。</span>
+        <span lang="en">VCAA allows an approved CAS calculator in Methods and Specialist Exam 2 and does not require its memory to be cleared, so documents on it come with you. Rules can change: check the latest VCAA and school notices.</span>
+      </p>
+    </details>
+    <details>
+      <summary><span lang="zh">支持哪些计算器？</span><span lang="en">Which calculators does it run on?</span></summary>
+      <p>
+        <span lang="zh">为 TI-Nspire CX II CAS 设计，也可以在电脑上的 TI-Nspire CX CAS Student Software 里打开。它需要 CAS，所以不带 CAS 的型号不能用。</span>
+        <span lang="en">It is made for the TI-Nspire CX II CAS and also opens in TI-Nspire CX CAS Student Software on a computer. It needs a CAS, so non-CAS models cannot run it.</span>
+      </p>
+    </details>
+    <details>
+      <summary><span lang="zh">网页上的演示和计算器上一样吗？</span><span lang="en">Is the web demo the same as on the calculator?</span></summary>
+      <p>
+        <span lang="zh">界面和操作是同一份程序，完全一样。区别只在计算：网页用的是简化引擎，计算器上用的是 TI 真正的 CAS，精确答案的写法可能略有不同。</span>
+        <span lang="en">The screens and keys come from the same program. Only the maths differs: the web uses a simplified engine, the calculator uses the real TI CAS, so exact answers may be laid out slightly differently.</span>
+      </p>
+    </details>
+    <details>
+      <summary><span lang="zh">换新版本，旧的题目还在吗？</span><span lang="en">Do I keep my saved problems when I update?</span></summary>
+      <p>
+        <span lang="zh">做过的题保存在文档里。用新文件替换旧文件后，历史会清空；想保留的话，可以先把旧文件改名留着。</span>
+        <span lang="en">Problems are saved inside the document, so replacing the file starts a fresh history. Rename the old file first if you want to keep it.</span>
+      </p>
+    </details>
+    <details>
+      <summary><span lang="zh">反馈里的邮箱会怎么用？</span><span lang="en">What happens to my email?</span></summary>
+      <p>
+        <span lang="zh">只保存你在表里填的内容，只用来回复你；勾选了通知的话，有新版本时会发一封邮件。不会公开，也不会给别人。</span>
+        <span lang="en">We keep only what you type in the form, use it only to reply, and, if you ticked it, to tell you about new versions. It is never shown or shared.</span>
+      </p>
+    </details>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <p>VCE Maths toolkit v{{VERSION}} · <span lang="zh">基于开源项目 rpnspire，按</span><span lang="en">Built on rpnspire, released under the</span> <a href="/LICENSE.txt">GPL-3.0</a><span lang="zh">发布</span> · <a href="{{SOURCE_URL}}"><span lang="zh">源代码</span><span lang="en">Source code</span></a></p>
+    <p class="small"><span lang="zh">与 Texas Instruments 和 VCAA 无关。TI-Nspire 是 Texas Instruments 的商标。</span><span lang="en">Not affiliated with Texas Instruments or the VCAA. TI-Nspire is a trademark of Texas Instruments.</span></p>
+  </div>
+</footer>
+
+<script src="/vendor/wasmoon.js?v={{STAMP}}" defer></script>
+<script src="/emu/core.js?v={{STAMP}}" defer></script>
+<script src="/emu/emulator.js?v={{STAMP}}" defer></script>
+<script src="/assets/timath.js?v={{STAMP}}" defer></script>
+<script src="/assets/tutorials.js?v={{STAMP}}" defer></script>
+<script src="/assets/site.js?v={{STAMP}}" defer></script>
+</body>
+</html>
