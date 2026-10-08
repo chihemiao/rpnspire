@@ -691,6 +691,55 @@ function test.revolution_between_and_y_axis()
    near(rnum(R, 'vol'), 32 * math.pi / 5, 1e-5, 'x = g(y) volume about y-axis')
 end
 
+function test.revolution_y_limits_and_letters()
+   -- y = x^2 between y = 1 and y = 4, beside the y-axis
+   local R = run('revolution', { type = 'y', f = 'x^2', lim = 'y', a = '1', b = '4', axis = 'y' })
+   no_errors(R)
+   near(rnum(R, 'area'), 14 / 3, 1e-6, 'area beside the y-axis')
+   near(rnum(R, 'vol'), 7.5 * math.pi, 1e-6, 'volume about the y-axis: pi*int(y, 1, 4)')
+   Test.assert(R.graph and R.graph.hlines and #R.graph.hlines == 2, 'lines y = 1 and y = 4')
+   -- the same typed as 'y=1' and 'y=4'
+   R = run('revolution', { type = 'y', f = 'x^2', a = 'y=1', b = 'y=4', axis = 'y' })
+   near(rnum(R, 'vol'), 7.5 * math.pi, 1e-6, 'limits typed as y=...')
+   -- about the x-axis: shells 2*pi*int(y*sqrt(y), 1, 4)
+   R = run('revolution', { type = 'y', f = 'x^2', lim = 'y', a = '1', b = '4', axis = 'x' })
+   near(rnum(R, 'vol_shell'), 2 * math.pi * 0.4 * 31, 1e-5, 'shells about the x-axis')
+   -- a letter in the limits: answers in terms of a, and a box to give V
+   local S = require 'apps.vce.solvers.revolution'
+   local I = { type = 'y', f = 'sqrt(x)', a = '0', b = 'a', axis = 'x' }
+   R = run('revolution', I)
+   local asks = false
+   for _, n in ipairs(R.notes) do
+      Test.assert(n.kind ~= 'error', 'no error: ' .. report.plain(n.text))
+      if n.text:find('^Answers in terms of a') then asks = true end
+   end
+   Test.assert(asks, 'says the answers are in terms of a')
+   Test.assert(R:get('vol') and R:get('vol'):find('q9a', 1, true), 'volume in terms of a')
+   Test.assert(not R.graph, 'no graph without a value for a')
+   local shown = false
+   for _, f in ipairs(S.fields) do
+      if f.id == 'known' then shown = f.show(I) end
+   end
+   Test.assert(shown, 'given box shown when there is a letter')
+   -- a given volume finds a, then everything is worked out
+   I.known = 'V=8pi'
+   R = run('revolution', I)
+   no_errors(R)
+   near(rnum(R, 'param_a'), 4, 1e-6, 'a from V = 8pi')
+   near(rnum(R, 'vol'), 8 * math.pi, 1e-6, 'volume with a = 4')
+   near(rnum(R, 'area'), 16 / 3, 1e-3, 'area with a = 4')
+   Test.assert(R.graph, 'graph once a is known')
+   I.known = 'A=16/3'
+   R = run('revolution', I)
+   near(rnum(R, 'param_a'), 4, 1e-4, 'a from the area')
+   I.known = 'a=4'
+   R = run('revolution', I)
+   near(rnum(R, 'vol'), 8 * math.pi, 1e-6, 'a given directly')
+   -- a letter in the curve
+   R = run('revolution', { type = 'y', f = 'k*x', a = '0', b = '2', axis = 'x', known = 'V=24pi' })
+   near(rnum(R, 'param_k'), 3, 1e-4, 'k from V: pi*k^2*8/3 = 24pi')
+end
+
 function test.revolution_parametric()
    local R = run('revolution', { type = 'param', f = '2cos(t)', g = '2sin(t)', a = '0', b = 'pi', axis = 'x' })
    near(rnum(R, 'len'), 2 * math.pi, 1e-5, 'semicircle length')
@@ -1548,6 +1597,9 @@ function test.i18n_coverage()
       { 'graph', { f = 'x+k' } }, { 'graph', { f = 'x', xmin = '3', xmax = '1' } },
       { 'revolution', { type = 'x', f = 'x', a = '0', b = '1' } }, { 'revolution', { f = 'x', a = '2', b = '1' } },
       { 'revolution', { type = 'param', f = 't' } }, { 'demodels', { type = 'related', rel = 'x*y', rate = '1', at = '1' } },
+      { 'revolution', { type = 'y', f = 'sqrt(x)', a = '0', b = 'a' } },
+      { 'revolution', { type = 'y', f = 'sqrt(x)', a = '0', b = 'a', known = 'W=2' } },
+      { 'revolution', { type = 'y', f = 'x^2', g = 'x', lim = 'y', a = '0', b = '1' } },
       { 'demodels', { type = 'cooling' } }, { 'demodels', { type = 'logistic' } }, { 'demodels', { type = 'mixing' } },
       { 'demodels', { type = 'general' } }, { 'demodels', { type = 'related' } }, { 'demodels', { type = 'growth', y0 = '5' } },
       { 'kinematics', { type = 'a(t)', f = '6t', v0 = '2', find = 't=2' } },

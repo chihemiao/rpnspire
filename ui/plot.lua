@@ -382,14 +382,33 @@ local function draw_body(g, r, spec, opts, hide)
       dashed(g, r.x, py(h.y), r.x + r.width, py(h.y), 2, 2)
    end
 
-   -- asymptotes
+   -- asymptotes. One that lies on an axis (x = 0, y = 0) is drawn as two
+   -- dashed lines either side of it, so the axis does not hide it.
    if not hide.asym then
       g:setColorRGB(C.asym)
+      local function vdash(p)
+         if ax_x and abs(p - ax_x) < 2 then
+            local off = spec.axis == 'y' and 3 or 2
+            dashed(g, ax_x - off, r.y, ax_x - off, r.y + r.height)
+            dashed(g, ax_x + off, r.y, ax_x + off, r.y + r.height)
+         else
+            dashed(g, p, r.y, p, r.y + r.height)
+         end
+      end
+      local function hdash(p)
+         if ax_y and abs(p - ax_y) < 2 then
+            local off = spec.axis == 'x' and 3 or 2
+            dashed(g, r.x, ax_y - off, r.x + r.width, ax_y - off)
+            dashed(g, r.x, ax_y + off, r.x + r.width, ax_y + off)
+         else
+            dashed(g, r.x, p, r.x + r.width, p)
+         end
+      end
       for _, a in ipairs(spec.asymptotes or {}) do
          if a.kind == 'v' then
-            dashed(g, px(a.x), r.y, px(a.x), r.y + r.height)
+            vdash(px(a.x))
          elseif a.kind == 'h' then
-            dashed(g, r.x, py(a.y), r.x + r.width, py(a.y))
+            hdash(py(a.y))
          elseif a.kind == 'f' and a.fn then
             local prev
             for p = r.x, r.x + r.width, 3 do

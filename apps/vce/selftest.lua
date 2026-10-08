@@ -43,6 +43,8 @@ T.cases = {
    { 'revolution', { type = 'y', f = 'sqrt(x)', a = '0', b = '4', axis = 'x' }, 'sa', 36.176903 },
    { 'revolution', { type = 'y', f = 'x^2', g = 'x', a = '0', b = '1', axis = 'y' }, 'vol_shell', 0.5235988 },
    { 'revolution', { type = 'param', f = '2cos(t)', g = '2sin(t)', a = '0', b = 'pi', axis = 'x' }, 'sa', 50.265482 },
+   { 'revolution', { type = 'y', f = 'x^2', lim = 'y', a = '1', b = '4', axis = 'y' }, 'vol', 23.561945 },
+   { 'revolution', { type = 'y', f = 'sqrt(x)', a = '0', b = 'a', axis = 'x', known = 'V=8pi' }, 'param_a', 4 },
    { 'demodels', { type = 'growth', y0 = '100', t1 = '5', y1 = '150', find = 't=10' }, 'q_y', 225 },
    { 'demodels', { type = 'cooling', y0 = '90', cap = '20', t1 = '5', y1 = '60', find = 't=10' }, 'q_y', 42.857143 },
    { 'demodels', { type = 'logistic', y0 = '10', cap = '100', k = '0.4' }, 'tinf', 5.4930614 },

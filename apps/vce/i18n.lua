@@ -223,6 +223,8 @@ I.FIELDS = {
       a = { label = '下限', hint = 'lower limit 下限' },
       b = { label = '上限', hint = 'upper limit 上限' },
       axis = { label = '旋转轴' },
+      lim = { label = '限值是' },
+      known = { label = '已知', hint = 'V=16pi  或  A=4（求 a）' },
    },
    demodels = {
       type = { label = '模型' },
@@ -357,6 +359,7 @@ I.OPTIONS = {
       labels = { show = 'show 显示', hide = 'hide 隐藏' },
    },
    revolution = {
+      lim = { x = 'x values x 值', y = 'y values y 值' },
       type = { param = 'parametric 参数方程' },
       axis = { x = 'x-axis x 轴', y = 'y-axis y 轴' },
    },
@@ -410,6 +413,7 @@ I.TERMS = {
       area = { 'area', '面积' }, area_signed = { 'signed integral', '定积分值（带符号）' },
       vol = { 'volume of revolution', '旋转体体积' }, vol_shell = { 'volume (shells)', '体积（柱壳法）' },
       len = { 'arc length', '弧长' }, sa = { 'surface area', '表面积' },
+      param = { 'constant', '常数' },
    },
    demodels = {
       k = { 'rate constant', '速率常数' }, yt = { 'solution', '解' }, double = { 'doubling time', '倍增时间' },
@@ -472,6 +476,12 @@ I.TERMS = {
 
 -- Notes and errors: Lua pattern -> Chinese (captures as %1, %2)
 I.NOTES = {
+   { '^Answers in terms of (.+) %(assumed > 0%)%..*$', '答案用 %1 表示（设为正数）。在“已知”里填如 V=16pi 可求出它' },
+   { '^Could not write x in terms of y: .*$', '无法把 x 写成 y 的式子：请把曲线类型选为 x = g(y)' },
+   { '^Only one letter can be found from one given value$', '一个已知值只能求一个字母' },
+   { '^Could not find (.+) from the given value$', '无法由已知值求出 %1' },
+   { '^Given: use V=16pi, A=4 or (.+)=2$', '“已知”请填 V=16pi、A=4 或 %1=2' },
+   { '^Could not find x where y = (.+)$', '找不到 y = %1 对应的 x' },
    { '^Type f%(x%) with its unknown constants.*$', '输入含未知常数的 f(x)，如 a*x^3+b*x^2+c' },
    { '^Condition (%d+): (.+)$', '条件 %1：%2' },
    { '^No unknown constants: .*$', '没有未知常数：在 f(x) 中用 a、b、c 等字母' },
@@ -607,6 +617,9 @@ I.NOTES = {
 
 -- Working-step section headings: pattern -> Chinese
 I.SECTIONS = {
+   { '^In terms of (.+)$', '用 %1 表示' },
+   { '^Find (%a)$', '求 %1' },
+   { '^With (.+) = (.+)$', '当 %1 = %2 时' },
    { '^Equations$', '方程' },
    { '^Solve$', '求解' },
    { '^Check$', '检验' },
@@ -758,8 +771,8 @@ I.HELP = {
      '函数图像：输入 f(x) 和 x 范围（y 范围可选），求出渐近线、驻点、拐点、截距、空心点、跳跃点、端点和不可导点；可选择在图上显示或隐藏各项（渐近线为虚线）。' },
    { 'text', 'Graphs: select a graph and press enter (or click it) for full screen. left/right trace · up/down jump between marked points · tab next curve · + / − zoom · 8 4 6 2 pan · 5 reset · l labels · a asymptotes · esc back.',
      '图像：选中图像后按 enter（或点击）全屏显示。左/右 追踪 · 上/下 跳到关键点 · tab 下一条曲线 · + / − 缩放 · 8 4 6 2 平移 · 5 复位 · l 标签 · a 渐近线 · esc 返回。' },
-   { 'text', 'Area/volume: y = f(x), x = g(y) or parametric x(t), y(t); a second curve gives the area or volume between the curves. DE models: choose growth/decay, cooling, logistic, mixing, a general dy/dx (with Euler steps) or related rates.',
-     '面积/体积：y = f(x)、x = g(y) 或参数方程 x(t), y(t)；填第二条曲线可求两曲线之间的面积或体积。微分方程模型：可选指数增长/衰减、冷却、logistic、混合问题、一般 dy/dx（含欧拉法）或相关变化率。' },
+   { 'text', 'Area/volume: y = f(x), x = g(y) or parametric x(t), y(t); a second curve gives the area or volume between the curves. Limits can be y values (choose "Limits are: y values" or type y=1 and y=4) and may contain a letter such as a; type a known volume (V=16pi) or area in "given" to find it. DE models: choose growth/decay, cooling, logistic, mixing, a general dy/dx (with Euler steps) or related rates.',
+     '面积/体积：y = f(x)、x = g(y) 或参数方程 x(t), y(t)；填第二条曲线可求两曲线之间的面积或体积。限值可以是 y 值（选“限值是：y 值”，或直接填 y=1、y=4），也可以含字母如 a；在“已知”里填体积（V=16pi）或面积可求出 a。微分方程模型：可选指数增长/衰减、冷却、logistic、混合问题、一般 dy/dx（含欧拉法）或相关变化率。' },
    { 'text', 'Run Self-test once on your calculator to check the solvers with its CAS.',
      '请在你的计算器上运行一次“自检”，用本机 CAS 检查各解题器。' },
    { 'text', 'Language: menu > Settings > Language.', '语言：menu › 设置 › 语言。' },

@@ -333,4 +333,25 @@ end
 key('enter_key')
 shot('36_kin_not_enough')
 key('escape')
+
+-- Volume with limits in y, and with a letter in the limits
+app.new_problem('revolution', { type = 'y', f = 'x^2', lim = 'y', a = '1', b = '4', axis = 'y' })
+for i, r in ipairs(app.sheet.rows) do
+   if r.kind == 'graph' then app.sheet:select(i) end
+end
+shot('37_rev_y_limits')
+key('escape')
+app.new_problem('revolution', { type = 'y', f = 'sqrt(x)', a = '0', b = 'a', axis = 'x', known = 'V=8pi' })
+for i, r in ipairs(app.sheet.rows) do
+   if r.id == 'known' then app.sheet:select(i) end
+end
+key('enter_key')
+shot('38_rev_letter')
+key('escape')
+app.new_problem('graph', { f = '1/x', xmin = '-5', xmax = '5' })
+for i, r in ipairs(app.sheet.rows) do
+   if r.kind == 'graph' then app.sheet:select(i) end
+end
+shot('39_asymptote_on_axis')
+key('escape')
 print('ok')
