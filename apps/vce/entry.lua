@@ -1,6 +1,6 @@
 -- Standalone document wiring for the VCE toolkit (shared by vce.lua and
--- vce_zh.lua). Call with the default language: 'en' or 'bi' (中英双语).
--- A language saved with the document takes precedence.
+-- vce_zh.lua). Call with the default language: 'en' or 'bi' (bilingual,
+-- only when apps.vce.i18n_zh is installed). A saved language takes precedence.
 -- luacheck: ignore platform on toolpalette
 
 require 'tableext'

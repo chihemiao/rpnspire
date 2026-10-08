@@ -481,7 +481,7 @@ function ui.sheet:layout_row(gc, r, W)
       local vb = mb.layout(val, S, gc)
       local eq = mb.text(r.mode == 'approx' and (' ' .. sym.APPROX .. ' ') or ' = ', S, gc)
       L.label, L.value, L.eq = label, vb, eq
-      -- bilingual term caption (e.g. 'variance 方差'), small and grey
+      -- bilingual term caption (English and Chinese name of the term), small and grey
       L.term = r.term and mb.text(r.term, mb.snap(max(7, S - 3)), gc) or nil
       local tw = L.term and (L.term.w + 6) or 0
       if label.w + eq.w + vb.w + tw + 2 * PAD <= W then

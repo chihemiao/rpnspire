@@ -6,6 +6,20 @@ local f = assert(io.open(file, 'r'))
 local src = f:read('*a')
 f:close()
 
+-- Chinese characters and CJK punctuation (UTF-8 lead bytes E3-E9, fullwidth
+-- forms EF BC/BD); maths symbols such as ≤ √ ⇔ (E2) and TI's own (EF 80-) pass
+local function has_cjk(s)
+   return s:find('[\227-\233][\128-\191][\128-\191]') or s:find('\239[\188\189][\128-\191]')
+end
+local bilingual = file:find('zh', 1, true) ~= nil
+if bilingual then
+   assert(has_cjk(src), 'bilingual document has its Chinese text')
+else
+   local at = has_cjk(src)
+   assert(not at, 'English document contains Chinese text: '
+          .. (at and src:sub(math.max(1, at - 60), at + 20) or ''))
+end
+
 function _G.class(base)
    local classdef = {}
    setmetatable(classdef, {
@@ -63,10 +77,18 @@ if file:find('bundle.lua', 1, true) == 1 then
    on.restore(state)
 else
    assert(menu, 'toolpalette registered')
-   if file:find('zh', 1, true) then
+   local has_lang = false
+   for _, sub in ipairs(menu) do
+      for _, it in ipairs(sub) do
+         if type(it) == 'table' and it[1]:find('Language') then has_lang = true end
+      end
+   end
+   if bilingual then
       assert(menu[1][1]:find('[\227-\233]'), 'bilingual document starts with a bilingual menu')
+      assert(has_lang, 'bilingual document can switch language')
    else
       assert(not menu[1][1]:find('[\227-\233]'), 'English document starts in English')
+      assert(not has_lang, 'English document has no language setting')
    end
    -- vce entry: open a solver, type, solve
    keys('1') keys('50') on.enterKey() keys('4') on.enterKey() on.enterKey() keys('X<55') on.enterKey()

@@ -128,7 +128,9 @@ local app = require 'apps.vce.app'
 
 local outdir = arg[1] or '.'
 if arg[2] == 'bi' then
-   require('apps.vce.i18n').default = 'bi'
+   local i18n = require 'apps.vce.i18n'
+   i18n.install(require 'apps.vce.i18n_zh')
+   i18n.default = 'bi'
 end
 
 local function shot(name)

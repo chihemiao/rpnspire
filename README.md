@@ -29,7 +29,7 @@ You type in the known values and it shows exact results (enter or a click switch
 - answers highlighted right under the inputs;
 - soft colours and short hints.
 
-It is available as the standalone `vce.tns` (`npm run build:vce`), as the bilingual `vce_zh.tns` (中英双语, `npm run build:vce-zh`; working steps stay in English), and inside `rpn.tns` under <kbd>.</kbd><kbd>a</kbd> › *VCE Maths toolkit*. See [doc/vce.md](doc/vce.md).
+It comes in two versions: the English-only `vce.tns` (`npm run build:vce`; no Chinese text and no language setting) and `vce_zh.tns` with Chinese (中英双语, `npm run build:vce-zh`; working steps stay in English). It is also inside `rpn.tns` (English) under <kbd>.</kbd><kbd>a</kbd> › *VCE Maths toolkit*. See [doc/vce.md](doc/vce.md).
 
 ## Install
 

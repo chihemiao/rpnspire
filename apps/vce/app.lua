@@ -306,8 +306,8 @@ function A.show_home()
    table.insert(rows, { kind = 'header', text = T('More') })
    table.insert(rows, { kind = 'link', title = T('History') .. ' (' .. #items .. ')', desc = T('all problems, tags, search'),
                         action = { 'history' }, id = 'history' })
-   table.insert(rows, { kind = 'link', title = T('Settings'), desc = T('decimal places, text size, colours, language'),
-                        action = { 'settings' }, id = 'settings' })
+   local set_desc = i18n.has_zh and 'decimal places, text size, colours, language' or 'decimal places, text size, colours'
+   table.insert(rows, { kind = 'link', title = T('Settings'), desc = T(set_desc), action = { 'settings' }, id = 'settings' })
    table.insert(rows, { kind = 'link', title = T('Help & keys'), desc = T('how to use this in 3 steps'),
                         action = { 'help' }, id = 'help' })
    table.insert(rows, { kind = 'link', title = T('Self-test'), desc = T('check the solvers with this calculator\'s CAS'),
@@ -649,7 +649,7 @@ function A.on_toggle(row)
 end
 
 function A.open_graph(row)
-   local hint = i18n.bi() and '</> 追踪  ^/v 关键点  +/- 缩放  8462 平移  l 标签  a 渐近线  esc 返回' or nil
+   local hint = i18n.bi() and i18n.HINTS.graphview or nil
    ui.graphview.open(row.spec, { hint = hint, labels = row.labels }, function()
       ui.set_focus(A.sheet)
       ui.update()
@@ -800,7 +800,7 @@ function A.on_delete(row)
          return
       end
       if row and row.action and row.action[1] == 'open' then
-         A.confirm((i18n.bi() and '删除 Delete ' or 'Delete ') .. row.title .. '?', function()
+         A.confirm(T('Delete') .. ' ' .. row.title .. '?', function()
             A.history:remove(row.action[2])
             A.show_history()
          end)
@@ -845,7 +845,8 @@ end
 function A.tag_dialog()
    local p = A.current()
    if not p then return end
-   local title = i18n.bi() and 'Tag 标签（如 2023 E2 Q5b）' or 'Tag / label (e.g. 2023 E2 Q5b)'
+   local title = 'Tag / label (e.g. 2023 E2 Q5b)'
+   if i18n.bi() then title = 'Tag ' .. i18n.z(title) end
    local dlg = require('dialog.input').display({ title = title, text = p.tag or '' })
    dlg.on_done = function(text)
       p.tag = trim(text)
@@ -908,15 +909,15 @@ end
 
 function A.symbol_menu()
    local syms = {
-      { sym.LEQ, 'less or equal', '小于等于' }, { sym.GEQ, 'greater or equal', '大于等于' },
-      { sym.NEQ, 'not equal', '不等于' }, { sym.INFTY, 'infinity', '无穷大' }, { sym.pi, 'pi', '圆周率' },
-      { sym.ROOT .. '(', 'square root', '平方根' }, { sym.EULER .. '^(', 'e^', '指数' },
-      { 'ln(', 'natural log', '自然对数' }, { '|', 'given (conditional)', '条件' },
-      { 'integral(', 'integral(f,x,a,b)', '积分' }, { 'abs(', 'absolute value', '绝对值' },
+      { sym.LEQ, 'less or equal' }, { sym.GEQ, 'greater or equal' },
+      { sym.NEQ, 'not equal' }, { sym.INFTY, 'infinity' }, { sym.pi, 'pi' },
+      { sym.ROOT .. '(', 'square root' }, { sym.EULER .. '^(', 'e^' },
+      { 'ln(', 'natural log' }, { '|', 'given (conditional)' },
+      { 'integral(', 'integral(f,x,a,b)' }, { 'abs(', 'absolute value' },
    }
    local items = {}
    for _, s in ipairs(syms) do
-      local title = s[1] .. '   ' .. s[2] .. (i18n.bi() and (' ' .. s[3]) or '')
+      local title = s[1] .. '   ' .. T(s[2])
       table.insert(items, { title = title, action = function() A.insert(s[1]) end })
    end
    ui.menu.menu_at_point(A.sheet, items, ui.point(20, 40))
@@ -964,7 +965,7 @@ function A.show_history()
       end
    end
    if #rows == 0 then
-      local nomatch = 'No match for "' .. A.filter .. '"' .. (i18n.bi() and '\n无匹配结果' or '')
+      local nomatch = 'No match for "' .. A.filter .. '"' .. (i18n.bi() and ('\n' .. i18n.z('No match')) or '')
       table.insert(rows, { kind = 'note', text = filt ~= '' and nomatch or T('No problems yet', '\n'), level = 'info' })
    end
    local count = i18n.bi() and (#items .. ' ' .. i18n.UI['problems']) or (#items .. ' problems')
@@ -979,12 +980,11 @@ function A.show_help()
    A.screen = 'help'
    A.set_title(T('Help'), 'v' .. A.VERSION)
    local rows = {}
-   local bi = i18n.bi()
-   for i, h in ipairs(i18n.HELP) do
+   for i, h in ipairs(i18n.help()) do
       if h[1] == 'header' then
-         table.insert(rows, { kind = 'header', text = bi and (h[2] .. ' ' .. h[3]) or h[2] })
+         table.insert(rows, { kind = 'header', text = h[2] })
       else
-         table.insert(rows, { kind = 'step', text = bi and (h[2] .. '\n' .. h[3]) or h[2], key = 'help' .. i })
+         table.insert(rows, { kind = 'step', text = h[2], key = 'help' .. i })
       end
    end
    A.sheet:set_rows(rows, false)
@@ -1046,13 +1046,16 @@ function A.show_settings()
    A.set_title(T('Settings'), T('esc: back'))
    local rows = { { kind = 'header', text = T('Settings') } }
    for _, st in ipairs(SETTINGS) do
-      local cur = setting_value(st.id)
-      local idx, options = 1, {}
-      for k, o in ipairs(st.options) do
-         if o[1] == cur then idx = k end
-         options[k] = { o[1], T(o[2]) }
+      -- the English-only documents have no language to choose
+      if st.id ~= 'lang' or i18n.has_zh then
+         local cur = setting_value(st.id)
+         local idx, options = 1, {}
+         for k, o in ipairs(st.options) do
+            if o[1] == cur then idx = k end
+            options[k] = { o[1], T(o[2]) }
+         end
+         table.insert(rows, { kind = 'choice', id = st.id, label = T(st.label), options = options, index = idx })
       end
-      table.insert(rows, { kind = 'choice', id = st.id, label = T(st.label), options = options, index = idx })
    end
    table.insert(rows, { kind = 'note', level = 'info', key = 'set-note',
                         text = i18n.note('Changes apply at once and are saved with the document') })
@@ -1074,8 +1077,7 @@ function A.apply_setting(row)
    elseif row.id == 'colors' then
       A.set_colors(v)
    elseif row.id == 'lang' then
-      A.settings.lang = v
-      i18n.lang = v
+      A.settings.lang = i18n.set(v)
       A.register_menu()
       A.sheet:invalidate_layout()
    end
@@ -1101,8 +1103,7 @@ function A.set_font(name)
 end
 
 function A.set_lang(lang)
-   A.settings.lang = lang
-   i18n.lang = lang
+   A.settings.lang = i18n.set(lang)
    A.register_menu()
    A.sheet:invalidate_layout()
    if A.screen == 'history' then
@@ -1148,6 +1149,20 @@ function A.menu()
       local title = i18n.solver(s)
       table.insert(solver_items, { title, function() A.safe(A.new_problem, s.id) end })
    end
+   local settings_items = {
+      T('Settings'),
+      item('All settings...', A.show_settings),
+      dp_item(2), dp_item(3), dp_item(4), dp_item(5), dp_item(6),
+      item('Font small', function() A.set_font('small') end),
+      item('Font normal', function() A.set_font('normal') end),
+      item('Font large', function() A.set_font('large') end),
+   }
+   if i18n.has_zh then
+      table.insert(settings_items, item('Language: English', function() A.set_lang('en') end))
+      table.insert(settings_items, item('Language: Chinese + English', function() A.set_lang('bi') end))
+   end
+   table.insert(settings_items, item('Colours: soft cream', function() A.set_colors('comfort') A.redraw_current() end))
+   table.insert(settings_items, item('Colours: plain white', function() A.set_colors('plain') A.redraw_current() end))
    local m = {
       { T('Problem'),
         item('Home', A.show_home),
@@ -1202,17 +1217,7 @@ function A.menu()
         item('All exact', function() A.set_all_modes('exact') end),
         item('All decimal', function() A.set_all_modes('approx') end),
       },
-      { T('Settings'),
-        item('All settings...', A.show_settings),
-        dp_item(2), dp_item(3), dp_item(4), dp_item(5), dp_item(6),
-        item('Font small', function() A.set_font('small') end),
-        item('Font normal', function() A.set_font('normal') end),
-        item('Font large', function() A.set_font('large') end),
-        item('Language: English', function() A.set_lang('en') end),
-        item('Language: Chinese + English', function() A.set_lang('bi') end),
-        item('Colours: soft cream', function() A.set_colors('comfort') A.redraw_current() end),
-        item('Colours: plain white', function() A.set_colors('plain') A.redraw_current() end),
-      },
+      settings_items,
       { T('Help'),
         item('Help & keys', A.show_help),
         item('Self-test', A.show_selftest),
@@ -1250,10 +1255,7 @@ function A.restore_state(state)
       A.settings.dp = tonumber(s.dp) or A.settings.dp
       A.settings.font = tonumber(s.font) or A.settings.font
       if s.mode == 'approx' or s.mode == 'exact' then A.settings.mode = s.mode end
-      if s.lang == 'en' or s.lang == 'bi' then
-         A.settings.lang = s.lang
-         i18n.lang = s.lang
-      end
+      if s.lang == 'en' or s.lang == 'bi' then A.settings.lang = i18n.set(s.lang) end
       if s.colors == 'comfort' or s.colors == 'plain' then A.set_colors(s.colors) end
    end
    fmt.dp = A.settings.dp
@@ -1270,7 +1272,7 @@ end
 function A.open(host)
    cas.init()
    A.invalidate()
-   i18n.lang = A.settings.lang or i18n.default
+   i18n.set(A.settings.lang or i18n.default)
    mb.rename = cas.display_name
    fmt.dp = A.settings.dp
    ui.sheet.set_palette(A.settings.colors)

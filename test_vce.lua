@@ -64,6 +64,10 @@ local Test = require 'testlib'
 local report = require 'apps.vce.report'
 local fmt = require 'apps.vce.fmt'
 local sym = require 'ti.sym'
+-- Chinese text of the bilingual document (vce_zh.lua installs it; the
+-- English-only documents do not, see test.english_only)
+local i18n_zh = require 'apps.vce.i18n_zh'
+require('apps.vce.i18n').install(i18n_zh)
 
 local VERBOSE = os.getenv('VERBOSE')
 
@@ -1616,6 +1620,75 @@ function test.i18n_coverage()
    end
    i18n.lang = 'en'
    Test.assert(#missing == 0, 'untranslated: ' .. table.concat(missing, '; '))
+end
+
+-- vce.tns and rpn.tns do not load i18n_zh: no Chinese and no language choice
+function test.english_only()
+   local app = require 'apps.vce.app'
+   local i18n = require 'apps.vce.i18n'
+   local solvers = require 'apps.vce.registry'
+   local function no_cjk(row, where)
+      for _, k in ipairs({ 'title', 'text', 'label', 'hint', 'desc', 'term', 'value' }) do
+         local v = row[k]
+         if type(v) == 'string' then Test.assert(not has_cjk(v), where .. ': ' .. v) end
+      end
+      for _, o in ipairs(row.options or {}) do
+         Test.assert(not has_cjk(tostring(o[2])), where .. ' option: ' .. tostring(o[2]))
+      end
+   end
+   i18n.install(nil)
+   local ok, err = pcall(function()
+      Test.assert(not i18n.has_zh and i18n.set('bi') == 'en', 'no bilingual mode without the Chinese text')
+      app.open(nil)
+      app.set_lang('bi')
+      Test.assert(i18n.lang == 'en' and app.settings.lang == 'en', 'language stays English')
+      for _, r in ipairs(app.sheet.rows) do
+         no_cjk(r, 'home')
+         if r.id == 'settings' then Test.assert(not r.desc:find('language'), 'settings blurb') end
+      end
+      app.show_settings()
+      for _, r in ipairs(app.sheet.rows) do
+         Test.assert(r.id ~= 'lang', 'no language setting')
+         no_cjk(r, 'settings')
+      end
+      for _, sub in ipairs(app.menu()) do
+         for _, it in ipairs(sub) do
+            if type(it) == 'table' then
+               Test.assert(not it[1]:find('Language'), 'no language menu item')
+               Test.assert(not has_cjk(it[1]), 'menu: ' .. it[1])
+            end
+         end
+      end
+      for _, h in ipairs(i18n.help()) do
+         Test.assert(not h[2]:find('Language'), 'help line about the language setting')
+         Test.assert(not has_cjk(h[2]), 'help: ' .. h[2])
+      end
+      for _, s in ipairs(solvers.home) do
+         app.new_problem(s.id)
+         app.fill_example()
+         for _, r in ipairs(app.sheet.rows) do no_cjk(r, s.id) end
+      end
+      local state = app.save_state()
+      state.settings.lang = 'bi'
+      app.restore_state(state)
+      Test.assert(i18n.lang == 'en', 'a saved bilingual setting is ignored')
+   end)
+   i18n.install(i18n_zh)
+   i18n.set('en')
+   app.settings.lang = nil
+   Test.assert(ok, tostring(err))
+end
+
+-- every help line has its Chinese
+function test.i18n_help()
+   local i18n = require 'apps.vce.i18n'
+   for _, h in ipairs(i18n.HELP) do
+      Test.assert(i18n.HELP_ZH[h[2]], 'help not translated: ' .. h[2])
+   end
+   i18n.set('bi')
+   local rows = i18n.help()
+   i18n.set('en')
+   Test.assert(#rows == #i18n.HELP and has_cjk(rows[1][2]) and rows[#rows][2]:find('Language'), 'bilingual help')
 end
 
 function test.ui_bilingual()

@@ -4,9 +4,9 @@ A TI-Nspire CX II CAS Lua program for the technology-active Exam 2 of VCE **Math
 
 The toolkit ships three ways:
 
-- `vce.tns`: a standalone document. Open it and the toolkit starts.
-- `vce_zh.tns`: the same toolkit in bilingual mode (中英双语). The interface, field labels and hints, notes, menus, help and the name of every result (for example *variance 方差*, *Type II error 第二类错误*) appear in Chinese and English. The working steps stay in English, the language of the VCE exam. You can switch language in either document under **Settings › Language**; the choice is saved with the document.
-- `rpn.tns`: rpnspire with the toolkit built in. Press <kbd>.</kbd> <kbd>a</kbd> and choose **VCE Maths toolkit**. With **Send to RPN stack** in the context menu you can push a result onto the rpnspire stack.
+- `vce.tns`: the English version, a standalone document. Open it and the toolkit starts. It is English only: it contains no Chinese text and has no language setting (it is also the smaller file).
+- `vce_zh.tns`: the version with Chinese (中英双语). The interface, field labels and hints, notes, menus, help and the name of every result (for example *variance 方差*, *Type II error 第二类错误*) appear in Chinese and English. The working steps stay in English, the language of the VCE exam. **Settings › Language** switches this document between Chinese + English and English only; the choice is saved with the document.
+- `rpn.tns`: rpnspire with the toolkit built in, in English like `vce.tns`. Press <kbd>.</kbd> <kbd>a</kbd> and choose **VCE Maths toolkit**. With **Send to RPN stack** in the context menu you can push a result onto the rpnspire stack.
 
 > Status: the solvers are tested on a desktop against a numeric CAS mock (`testcas.lua`), and the bundled document is smoke-tested in a TI-like Lua 5.1 sandbox. The real TI CAS (exact output, syntax) still has to be checked on a handheld or in the TI-Nspire CX CAS software. Run **Help › Self-test** once on your calculator: it solves 57 known problems and reports any that fail.
 
@@ -171,7 +171,7 @@ Each problem you open is kept in the history (up to 60), together with its input
 - whether answers start exact or decimal;
 - text size (small, normal or large);
 - colours (soft cream or plain white);
-- language (English, or Chinese + English).
+- language (English, or Chinese + English): only in `vce_zh.tns`.
 
 Settings are saved with the document. Use **All exact / All decimal** in the menu to switch every result at once.
 
@@ -180,8 +180,9 @@ Settings are saved with the document. Use **All exact / All decimal** in the men
 - 界面、输入格的标签和提示、菜单、帮助、提示信息都显示中英两种语言。
 - 每个结果旁边用灰色小字标出术语的中英文名称，例如 `σ² = 16    variance 方差`、`P(Type II) = 0.1962    Type II error 第二类错误`。
 - 解题步骤（Working）保持英文，与 VCE 考试的答题语言一致。
-- 两个文件可以随时在 **menu › 设置 Settings › 语言 Language** 里切换语言，设置会随文档保存。
-- 中文显示依赖计算器系统字体中的中文字形。TI-Nspire CX II 系统支持简体中文，一般可以正常显示；如果出现方框，请切换回英文。
+- 可以在 **menu › 设置 Settings › 语言 Language** 里切换成纯英文显示，设置会随文档保存。
+- 英文版 `vce.tns`（以及 `rpn.tns`）完全是英文：不含任何中文，也没有语言选项。
+- 中文显示依赖计算器系统字体中的中文字形。TI-Nspire CX II 系统支持简体中文，一般可以正常显示；如果出现方框，请切换回英文，或改用 `vce.tns`。
 
 ## Development
 
@@ -195,5 +196,5 @@ Settings are saved with the document. Use **All exact / All decimal** in the men
 - CAS bridge: `apps/vce/cas.lua`. Formatting: `apps/vce/fmt.lua`. Event parser: `apps/vce/event.lua`.
 - UI: `views/sheet.lua` holds the worksheet rows; `ui/mathbox.lua` is the 2D pretty printer; `apps/vce/app.lua` handles screens, menu, history and persistence.
 - Entry points: `vce.lua` (English) and `vce_zh.lua` (bilingual) share `apps/vce/entry.lua`; `apps/vce/launcher.lua` adds the toolkit to the rpnspire app list.
-- Translations: `apps/vce/i18n.lua` (interface strings, solver titles, field hints, result terms, note patterns, help). Working steps are not translated.
+- Languages: `apps/vce/i18n.lua` holds the lookup functions and the English help. All Chinese text (interface strings, solver titles, field hints, result terms, note patterns, help) is in `apps/vce/i18n_zh.lua`, which only `vce_zh.lua` loads (`i18n.install`). Without it the toolkit is English only and hides the language setting, so `vce.tns` and `rpn.tns` carry no Chinese; `tools/bundle_smoke.lua` fails if an English bundle contains Chinese characters. Keep Chinese text out of every other module. Working steps are not translated.
 - Tests: `lua test_vce.lua` runs the solvers against the numeric mock in `testcas.lua` and drives the UI with key events. `lua5.1 tools/bundle_smoke.lua vce_bundle.lua` runs the built bundle without `require`/`io`/`os`. `tools/render.sh <dir>` renders approximate desktop screenshots (needs Chromium).
