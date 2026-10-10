@@ -4,7 +4,11 @@
   "scripts": {
     "test": "make test",
     "build": "make tns LUABUNDLER=./node_modules/.bin/luabundler",
-    "build:hello": "./build.sh examples/hello.lua hello.tns"
+    "build:hello": "./build.sh examples/hello.lua hello.tns",
+    "build:vce": "make vce LUABUNDLER=./node_modules/.bin/luabundler",
+    "build:vce-zh": "make vce-zh LUABUNDLER=./node_modules/.bin/luabundler",
+    "build:site": "npm run build:vce && npm run build:vce-zh && node site/build.mjs",
+    "test:site": "node site/test/emu.test.mjs && node site/test/worker.test.mjs && node site/test/usb.test.mjs"
   },
   "devDependencies": {
     "luabundler": "1.2.3"

@@ -9,6 +9,31 @@ An RPN interface for the TI Nspire CX
 As I really liked the rpn application for the TI-89 but could not find a usable RPN implementation for the TI nSpire, I've created rpnSpire, a powerful RPN implementation
 with many features such as searchable menus, autocompletion, an application framework in lua, a matrix editor, and many more.
 
+## VCE Maths toolkit (Methods + Specialist)
+
+This fork adds a solver toolkit for the tech-active Exam 2 of VCE Mathematical Methods (MM) and Specialist Mathematics (SM) on the TI-Nspire CX II CAS. Every topic is marked MM or SM. It covers:
+
+- function graphs with asymptotes, turning points, inflection points and non-differentiable points;
+- unknown constants from conditions (`f(1)=3`, `f'(2)=0`, points, turning points, tangents, asymptotes);
+- transformations y = A f(n(x + b)) + c in VCE order, with the mapping of points, or found from two rules;
+- simultaneous linear equations with a parameter (unique, no or infinitely many solutions);
+- areas, volumes of revolution, arc length and surface area for y = f(x), x = g(y) and parametric curves;
+- DE models (growth, cooling, logistic, mixing, Euler, related rates), with graphs;
+- SUVAT and variable-acceleration kinematics, including any one function such as v(x) or t(x);
+- the angle between two vectors or three points (acute or not, degrees or radians), and a letter in a vector found from a given angle;
+- probability in one place: normal, binomial, discrete and continuous (PDF) random variables, sample proportions (p̂) and their confidence intervals, sample means, linear combinations, and hypothesis tests with Type I/II errors.
+
+You type in the known values and it shows exact results (enter or a click switches to decimals), 2D maths like the CAS screen, and VCE-style working. History and tags are kept with the document. The interface is designed for easy reading:
+
+- few choices per screen;
+- an example button in every empty problem;
+- answers highlighted right under the inputs;
+- soft colours and short hints.
+
+It comes in two versions: the English-only `vce.tns` (`npm run build:vce`; no Chinese text and no language setting) and `vce_zh.tns` with Chinese (中英双语, `npm run build:vce-zh`; working steps stay in English). It is also inside `rpn.tns` (English) under <kbd>.</kbd><kbd>a</kbd> › *VCE Maths toolkit*. See [doc/vce.md](doc/vce.md).
+
+The website in `site/` offers both downloads and a changelog. It has step-by-step examples that run the real toolkit in the browser, and a feedback form. It deploys to Cloudflare (`npm run build:site`, `npm run test:site`). See [doc/site.md](doc/site.md).
+
 ## Install
 
 Use the latest build from the *GitHub actions* and put it under `MyWidgets` on your nspire CX.
@@ -25,7 +50,7 @@ npm test
 npm run build
 ```
 
-The build writes `bundle.lua` and `rpn.tns`. It downloads and builds Luna v2.1 locally in `.luna/` on first use. To test a single Lua script without bundling the full application, run `npm run build:hello`; this converts `examples/hello.lua` to `hello.tns`.
+The build writes `bundle.lua` and `rpn.tns`; `npm run build:vce` writes `vce_bundle.lua` and `vce.tns`. It downloads and builds Luna v2.1 locally in `.luna/` on first use. To test a single Lua script without bundling the full application, run `npm run build:hello`; this converts `examples/hello.lua` to `hello.tns`.
 
 The generated `.tns` needs to be opened in TI-Nspire CX CAS software or on a CX II CAS handheld for runtime validation. Compilation alone verifies the local toolchain.
 

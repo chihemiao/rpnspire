@@ -1,0 +1,57 @@
+name: site
+# Builds the website (site/) with the latest vce.tns and vce_zh.tns, tests it,
+# and deploys it to Cloudflare when the CLOUDFLARE_API_TOKEN secret is set.
+on:
+  push:
+    branches: [main, claude/ti-nspire-math-tool-l6e103]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  site:
+    runs-on: ubuntu-24.04
+    env:
+      HAS_CLOUDFLARE: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install Lua and zlib headers
+        run: sudo apt-get update && sudo apt-get install -y lua5.4 zlib1g-dev
+      - name: Install Node dependencies
+        run: |
+          npm ci
+          npm ci --prefix site
+      - name: Build the documents and the site
+        run: LUA=lua5.4 npm run build:site
+      - name: Test the site
+        run: npm run test:site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site/dist
+      - name: Deploy to Cloudflare
+        if: env.HAS_CLOUDFLARE == 'true'
+        working-directory: site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then unset CLOUDFLARE_ACCOUNT_ID; fi
+          npx wrangler deploy
+          if [ -n "$ADMIN_TOKEN" ]; then
+            printf '%s' "$ADMIN_TOKEN" | npx wrangler secret put ADMIN_TOKEN
+          fi
+      - name: Deployment skipped
+        if: env.HAS_CLOUDFLARE != 'true'
+        run: echo "::notice::Add the CLOUDFLARE_API_TOKEN repository secret to deploy the site (see doc/site.md)."

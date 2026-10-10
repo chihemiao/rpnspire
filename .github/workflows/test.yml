@@ -14,18 +14,29 @@ jobs:
           node-version: '22'
           package-manager-cache: false
       - name: Install Lua and zlib headers
-        run: sudo apt-get update && sudo apt-get install -y lua5.4 zlib1g-dev
+        run: sudo apt-get update && sudo apt-get install -y lua5.1 lua5.4 zlib1g-dev
       - name: Install Node dependencies
         run: npm ci
       - name: Test Lua code
-        run: make test LUA=lua5.4
+        run: |
+          make test LUA=lua5.4
+          make test LUA=lua5.1
       - name: Build TNS documents
         run: |
           npm run build
+          npm run build:vce
+          npm run build:vce-zh
           npm run build:hello
+      - name: Smoke-test bundles (TI-like sandbox, Lua 5.1)
+        run: |
+          lua5.1 tools/bundle_smoke.lua vce_bundle.lua
+          lua5.1 tools/bundle_smoke.lua vce_zh_bundle.lua
+          lua5.1 tools/bundle_smoke.lua bundle.lua
       - uses: actions/upload-artifact@v4
         with:
           name: tns-documents
           path: |
             rpn.tns
+            vce.tns
+            vce_zh.tns
             hello.tns
