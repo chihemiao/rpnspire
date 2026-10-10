@@ -302,6 +302,20 @@
     if (m) { const target = $('#highlights'); if (target) target.scrollIntoView(); }
   }
 
+  // Send to calculator ---------------------------------------------------------------
+  // The link downloads the .tns as usual; where the browser has WebUSB it also
+  // opens TI's CX II Connect web app, which sends the file to the calculator.
+  // (No website can start Student Software or hand a file to another site.)
+
+  $$('[data-send]').forEach((a) => a.addEventListener('click', () => {
+    if (navigator.usb) {
+      window.open('https://nspireconnect.ti.com/', '_blank', 'noopener');
+    } else {
+      const note = $('[data-send-note]');
+      if (note) note.hidden = false;
+    }
+  }));
+
   // Latest version (the page may be cached) -------------------------------------
 
   fetch('/version.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((v) => {

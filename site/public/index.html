@@ -151,6 +151,9 @@
           <span lang="zh">下载中文版</span><span lang="en">Download Chinese edition</span>
           <small>vce_zh.tns · {{SIZE_ZH}}</small>
         </a>
+        <a class="btn small dl-send" href="/downloads/vce_zh.tns" download="vce_zh.tns" data-send>
+          <span lang="zh">下载并发送到计算器 ↗</span><span lang="en">Download &amp; send to calculator ↗</span>
+        </a>
       </article>
       <article class="dl-card">
         <div class="dl-flag" aria-hidden="true">EN</div>
@@ -163,8 +166,15 @@
           <span lang="zh">下载英文版</span><span lang="en">Download English edition</span>
           <small>vce.tns · {{SIZE_EN}}</small>
         </a>
+        <a class="btn small dl-send" href="/downloads/vce.tns" download="vce.tns" data-send>
+          <span lang="zh">下载并发送到计算器 ↗</span><span lang="en">Download &amp; send to calculator ↗</span>
+        </a>
       </article>
     </div>
+    <p class="send-note" hidden data-send-note>
+      <span lang="zh">这个浏览器连不了计算器，文件已经照常下载。想一键发送，请在电脑上用 Chrome 或 Edge 打开本页。</span>
+      <span lang="en">This browser cannot talk to the calculator, so the file was just downloaded. To send in one click, open this page in Chrome or Edge on a computer.</span>
+    </p>
     <p class="dl-version">
       <span lang="zh">最新版本</span><span lang="en">Latest version</span>
       <strong>v<span data-version>{{VERSION}}</span></strong> · {{DATE}}
@@ -180,8 +190,18 @@
             <span lang="en">Download a <code>.tns</code> file above.</span>
           </li>
           <li>
-            <span lang="zh">用数据线连上计算器，打开电脑上的 TI-Nspire CX Student Software 或免费的 TI-Nspire Computer Link，把文件拖进计算器的文件夹。</span>
-            <span lang="en">Connect the calculator, open TI-Nspire CX Student Software or the free TI-Nspire Computer Link, and drag the file onto the calculator.</span>
+            <span lang="zh">用数据线连上计算器，再选一种方法传过去：</span>
+            <span lang="en">Connect the calculator with its cable, then send the file one of two ways:</span>
+            <ul class="send-ways">
+              <li>
+                <span lang="zh"><strong>不用装软件：</strong>点上面的“下载并发送到计算器”，它会下载文件，同时打开 TI 官方的免费网页 <a href="https://nspireconnect.ti.com/" target="_blank" rel="noopener">TI-Nspire CX II Connect</a>（电脑上的 Chrome 或 Edge）。在那里点 Connect to calculator 选你的计算器，再到 File Transfer › From computer，选刚下载的文件。</span>
+                <span lang="en"><strong>No install:</strong> press “Download &amp; send to calculator” above. It downloads the file and opens TI's free web app <a href="https://nspireconnect.ti.com/" target="_blank" rel="noopener">TI-Nspire CX II Connect</a> (Chrome or Edge on a computer). There, press Connect to calculator and pick yours, then File Transfer › From computer and choose the file you just downloaded.</span>
+              </li>
+              <li>
+                <span lang="zh"><strong>Student Software：</strong>打开电脑上的 TI-Nspire CX Student Software，把文件拖到连着的计算器上。</span>
+                <span lang="en"><strong>Student Software:</strong> open TI-Nspire CX Student Software and drag the file onto the connected calculator.</span>
+              </li>
+            </ul>
           </li>
           <li>
             <span lang="zh">在计算器上 <kbd>home</kbd> › My Documents 打开它。第一次用时，在首页最下面运行一次 Self-test（自检），确认和你计算器的 CAS 配合正常。</span>
@@ -197,8 +217,8 @@
             <span lang="en">Check your version: <kbd>menu</kbd> › Help shows it in the title bar, like <strong>v{{VERSION}}</strong>.</span>
           </li>
           <li>
-            <span lang="zh">比这里旧，就下载新文件，用同样的方法传到计算器上，替换旧文件。</span>
-            <span lang="en">If it is older than this page, download the new file and copy it over the old one the same way.</span>
+            <span lang="zh">比这里旧，就用同样的方法把新文件传到计算器上。CX II Connect 遇到同名文件会另存一份带编号的，所以先在计算器上删掉旧文件。</span>
+            <span lang="en">If it is older than this page, send the new file the same way. CX II Connect saves a numbered copy when the name is taken, so delete the old file on the calculator first.</span>
           </li>
           <li>
             <span lang="zh">想第一时间知道？在下面的反馈表里勾选“有新版本时通知我”。</span>

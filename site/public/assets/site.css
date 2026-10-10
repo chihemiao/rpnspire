@@ -193,6 +193,11 @@ section.band { background: var(--band); }
 .dl-flag { width: 44px; height: 44px; border-radius: 12px; background: var(--brand); color: var(--brand-ink); display: grid; place-items: center; font-weight: 800; margin-bottom: 12px; }
 .dl-btn { flex-direction: column; gap: 0; padding: 12px 20px; }
 .dl-btn small { font-weight: 500; opacity: .85; font-size: .82rem; }
+.dl-send { margin-top: 10px; }
+.send-note { color: var(--warn); }
+.send-ways { margin: 8px 0 0; padding-left: 1.1em; list-style: disc; }
+.big-steps .send-ways li { counter-increment: none; padding-left: 0; margin-bottom: 6px; }
+.big-steps .send-ways li::before { content: none; }
 .dl-version { color: var(--muted); }
 .update-note { margin-left: .5em; color: var(--warn); }
 .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 28px; }
