@@ -98,7 +98,7 @@ Each derived formula shows its domain under it. The domain follows from the moti
 - `a(x)` and `v²(x)`: x moves from x₀ to the turning point where v² = 0.
 - Formulas in t hold for t ≥ t₀, cut short where the formula stops being defined.
 
-Select a formula and press **enter** to see only the steps that lead to it, including the given information and any constant found. Left/right still switches exact ⇄ decimal.
+Enter switches a formula between exact and decimal, like every other answer. Select a formula and press **W** (or choose *Working for this formula* in the ctrl+menu context menu) to see only the steps that lead to it, including the given information and any constant found.
 
 If the question gives no x₀ or v₀ but, for example, the acceleration at a certain velocity, type that condition into **also**: `a=-3.5 when v=7`. The unknown constant is found first. Without an initial state, t(v) and x(v) are given as general solutions with +c.
 
@@ -149,15 +149,17 @@ Exact values are shown where the CAS finds them. Points it finds only numericall
 | digits in a list of kinds | choose that kind (Probability step 1) |
 | up / down | move between rows |
 | typing | edits the selected field (a preview shows it in 2D, like the CAS) |
-| enter | solve and move to the next field; on a result it switches **exact ⇄ decimal**; on a derived formula (e.g. x(v)) it opens the working for that formula only (esc returns); on a choice with many options (Probability's Type) it opens the list |
+| enter | solve and move to the next field; on any result (formulas too) it switches **exact ⇄ decimal**; on a choice with many options (Probability's Type) it opens the list |
+| W | on a derived formula (e.g. x(v)): the working for that formula only (esc returns) |
 | click (touchpad) | select a row; clicking a result switches exact ⇄ decimal |
 | left / right | move the cursor in a field, change a choice, switch a result or scroll a long answer |
 | tab / shift+tab | next / previous field |
 | esc | undo the unsaved edit, else go back (home) |
 | del / clear | delete a character / clear the field |
-| ctrl+C | copy the selected value or working line (paste it into a Calculator page) |
+| ctrl+C | copy the selected row: an answer as shown (exact or decimal, in calculator syntax), a working line, the text in a box (even while typing) or a choice; the bottom bar shows what was copied. Paste it into a Calculator page |
+| ctrl+X | in a box: copy its text and clear it |
 | menu | toolbar: new problem, duplicate, tag, clear, previous/next, solvers, history, settings, help |
-| ctrl+menu | context menu: insert a document function or symbol, store to a variable, send to the RPN stack |
+| ctrl+menu | context menu: insert a document function or symbol, store to a variable, send to the RPN stack, the working for a formula |
 | on result/working rows: n / p | next / previous problem |
 | t / h / d / e | tag the problem / history / all decimal / all exact |
 

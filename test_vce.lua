@@ -1340,9 +1340,14 @@ function test.ui_smoke()
       for _ = 1, 60 do
          local row = app.sheet:selected()
          if row and row.kind == 'result' then
+            local mode = row.mode
             key('enter_key')
-            if app.screen == 'detail' then
+            Test.assert(app.screen == 'problem' and (row.prose or app.sheet:selected().mode ~= mode),
+                        s.id .. ' enter switches exact/decimal')
+            key('char', 'w')
+            if row.detail then
                -- formula: its own working; esc returns to the same row
+               Test.assert(app.screen == 'detail', s.id .. ' W opens the formula working')
                Test.assert(paint_all() > 0, s.id .. ' formula working paints')
                key('down') key('escape')
                Test.assert(app.screen == 'problem' and app.sheet:selected().key == row.key,
@@ -1568,9 +1573,15 @@ function test.ui_formula_working()
    for _, r in ipairs(app.sheet.rows) do if r.rkey == 'vterm' then vt = r end end
    Test.assert(vt and not vt.detail, 'a number keeps enter = exact/decimal')
    app.sheet:select(idx)
-   Test.assert(app.hint.left:find('working', 1, true), 'hint explains enter')
+   Test.assert(app.hint.left:find('W: working', 1, true), 'hint explains W')
+   local mode0 = row.mode
    key('enter_key')
-   Test.assert(app.screen == 'detail', 'enter opens the working')
+   Test.assert(app.screen == 'problem' and app.sheet:selected().mode ~= mode0,
+               'enter switches exact/decimal on a formula')
+   key('enter_key')
+   Test.assert(app.sheet:selected().mode == mode0, 'and back')
+   key('char', 'W')
+   Test.assert(app.screen == 'detail', 'W opens the working')
    Test.assert(count('step') < all_steps and count('step') >= 3, 'only the steps for x(v)')
    Test.assert(app.sheet:selected().rkey == 'xv', 'formula selected')
    local mode = app.sheet:selected().mode
@@ -1581,6 +1592,67 @@ function test.ui_formula_working()
    Test.assert(app.screen == 'problem' and app.sheet:selected().rkey == 'xv', 'back on x(v)')
    Test.assert(app.sheet:selected().mode ~= mode, 'mode kept')
    app.settings.mode = 'exact'
+end
+
+function test.ui_copy()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   local function key(name, ...) ui.on_event(name, ...) end
+   -- copy / cut / paste stay enabled after the menu is registered again
+   local enabled = {}
+   local tp = _G.toolpalette
+   local saved = { tp.enableCopy, tp.enableCut, tp.enablePaste }
+   tp.enableCopy = function(on) enabled.copy = on end
+   tp.enableCut = function(on) enabled.cut = on end
+   tp.enablePaste = function(on) enabled.paste = on end
+   app.register_menu()
+   tp.enableCopy, tp.enableCut, tp.enablePaste = saved[1], saved[2], saved[3]
+   Test.assert(enabled.copy and enabled.cut and enabled.paste, 'ctrl+C/X/V enabled after register')
+
+   app.settings.mode = 'exact'
+   app.open(nil)
+   app.new_problem('kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2', t0 = '0', find = 'v=4' })
+   local function select(pred)
+      for i, r in ipairs(app.sheet.rows) do
+         if pred(r) then app.sheet:select(i) return r end
+      end
+   end
+   local function copied()
+      _G.clipboard.text = ''
+      key('copy')
+      return _G.clipboard.text
+   end
+   -- an answer copies what is shown: exact, then decimal
+   Test.assert(select(function(r) return r.rkey == 'q_t' end), 'answer t for v = 4')
+   local exact = copied()
+   Test.assert(exact ~= '' and not exact:find('q9', 1, true), 'answer copied without local names: ' .. exact)
+   Test.assert(app.hint.left:find('Copied', 1, true), 'bottom bar says it was copied')
+   key('enter_key')
+   local dec = copied()
+   Test.assert(dec ~= exact and tonumber(dec), 'decimal copied after enter: ' .. dec)
+   -- a formula copies in calculator syntax
+   select(function(r) return r.rkey == 'at' end)
+   Test.assert(copied() == '6*t' or copied():find('t', 1, true), 'formula copied with t')
+   -- a working line
+   select(function(r) return r.kind == 'step' and not r.section end)
+   Test.assert(copied():find('a = 6', 1, true), 'working line copied')
+   -- a box being typed in copies what it holds now, cut also clears it
+   select(function(r) return r.id == 'f' end)
+   key('char', '+') key('char', '1')
+   Test.assert(copied() == '6t+1', 'box copies the text being typed')
+   _G.clipboard.text = ''
+   key('cut')
+   Test.assert(_G.clipboard.text == '6t+1' and app.sheet.edit and #app.sheet.edit.chars == 0, 'cut clears the box')
+   key('paste')
+   Test.assert(table.concat(app.sheet.edit.chars) == '6t+1', 'paste puts it back')
+   key('escape')
+   -- a choice copies its label and option
+   select(function(r) return r.kind == 'choice' and r.id == 'type' end)
+   local ch = copied()
+   Test.assert(ch == 'Given: a = f(t)', 'choice copied: ' .. ch)
+   -- moving on restores the hint
+   key('down')
+   Test.assert(not app.hint.left:find('Copied', 1, true), 'hint back after moving')
 end
 
 function test.ui_new_user_flow()

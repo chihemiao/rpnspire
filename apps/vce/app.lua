@@ -143,7 +143,9 @@ function A.value_text(row)
          return e
       end
       if not row._approx then
-         row._approx = cas.eval('approx(' .. e .. ')') or e
+         local a = cas.eval('approx(' .. e .. ')')
+         -- keep the answer when approx() comes back unevaluated
+         row._approx = (a and not a:find('^approx%(')) and a or e
       end
       return fmt.round_expr(row._approx, A.settings.dp)
    end
@@ -183,13 +185,18 @@ function A.build()
       if row.kind == 'step' or row.kind == 'note' or row.kind == 'text' then return report.plain(row.text) end
       if row.kind == 'input' then return row.text end
       if row.kind == 'math' then return fmt.plain(row.m) end
+      if row.kind == 'choice' then
+         local o = row.options[row.index or 1]
+         return report.plain(row.label .. ': ' .. (o and (o[3] or o[2]) or ''))
+      end
+      if row.kind == 'link' then return report.plain(row.title .. (row.desc and ('  ' .. row.desc) or '')) end
    end
+   sheet.on_copied = function(_, text) A.copied(text) end
    sheet.on_select = function(_, row) A.update_hint(row) end
    sheet.on_commit = function(_, row) A.safe(A.on_commit, row) end
    sheet.on_submit = function(_, row) A.safe(A.on_submit, row) end
    sheet.on_choice = function(_, row) A.safe(A.on_choice, row) end
    sheet.on_activate = function(_, row) A.safe(A.on_activate, row) end
-   sheet.on_detail = function(_, row) A.safe(A.show_detail, row) end
    sheet.on_pick = function(_, row) A.safe(A.pick_dialog, row) end
    sheet.on_toggle = function(_, row) A.safe(A.on_toggle, row) end
    sheet.on_escape_cb = function() A.safe(A.on_escape) end
@@ -241,7 +248,7 @@ local HINTS = {
    link = 'enter: open' .. DOT .. 'or press its number',
    math = 'left/right: scroll',
    graph = 'enter: full screen',
-   formula = 'enter: working for this formula' .. DOT .. 'left/right: exact ' .. sym.DLIMP .. ' decimal',
+   formula = 'enter: exact ' .. sym.DLIMP .. ' decimal' .. DOT .. 'W: working for this formula',
    detail = 'esc: back to the problem' .. DOT .. 'enter: exact ' .. sym.DLIMP .. ' decimal',
    example = 'enter: fill in a sample question',
    prose = 'up/down: read' .. DOT .. 'ctrl+C: copy',
@@ -267,6 +274,14 @@ function A.update_hint(row)
    else
       A.hint.left = i18n.hint('default', 'menu: more options' .. DOT .. 'esc: back')
    end
+end
+
+-- Ctrl+C: say what went to the clipboard (until the selection moves)
+function A.copied(text)
+   text = text:gsub('%s+', ' ')
+   if #text > 40 then text = text:sub(1, 37):gsub('[\192-\255][\128-\191]*$', '') .. '...' end
+   A.hint.left = T('Copied') .. ': ' .. text
+   ui.update()
 end
 
 -- Home ------------------------------------------------------------------------------
@@ -686,7 +701,14 @@ function A.on_activate(row)
    end
 end
 
--- Working for one formula only (enter on a formula result)
+-- W on a formula result: its own working
+function A.open_working(row)
+   if A.screen == 'problem' and row and row.kind == 'result' and row.detail then
+      A.show_detail(row)
+   end
+end
+
+-- Working for one formula only
 function A.show_detail(row)
    local R = A.last_report
    local steps = R and R:steps_for(row.rkey)
@@ -785,8 +807,9 @@ function A.on_shortcut(c)
          h = function() A.show_history() end,
          d = function() A.set_all_modes('approx') end,
          e = function() A.set_all_modes('exact') end,
+         w = function() A.open_working(A.sheet:selected()) end,
       }
-      local f = map[c]
+      local f = map[c] or (c == 'W' and map.w)
       if f then
          A.safe(f)
          return true
@@ -930,6 +953,10 @@ function A.on_context(row)
    if not row then return end
    local items = {}
    if row.kind == 'result' then
+      if row.detail and A.screen == 'problem' then
+         table.insert(items, { title = T('Working for this formula'),
+                               action = function() A.safe(A.show_detail, row) end })
+      end
       table.insert(items, { title = T('Exact ' .. sym.DLIMP .. ' decimal'), action = function() A.sheet:toggle(row) ui.update() end })
       table.insert(items, { title = T('Copy value'), action = function() A.sheet:on_copy() end })
       table.insert(items, { title = T('Store to variable...'), action = function() A.store_dialog() end })
@@ -1236,6 +1263,10 @@ function A.register_menu()
    -- luacheck: ignore toolpalette
    if toolpalette and toolpalette.register then
       pcall(toolpalette.register, A.menu())
+      -- Edit > Copy / Cut / Paste (ctrl+C, X, V) again after each register
+      for _, name in ipairs({ 'enableCopy', 'enableCut', 'enablePaste' }) do
+         if toolpalette[name] then pcall(toolpalette[name], true) end
+      end
    end
 end
 

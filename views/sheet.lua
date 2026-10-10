@@ -1002,13 +1002,9 @@ function ui.sheet:on_enter_key()
          cycle(self, r, 1)
       end
    elseif r.kind == 'result' then
-      -- formulas with their own working open it; other results switch
-      -- exact <-> decimal (left/right still switch formulas)
-      if r.detail and self.on_detail then
-         self:on_detail(r)
-      else
-         self:toggle(r)
-      end
+      -- every result switches exact <-> decimal (a formula's own working
+      -- opens with W or the menu)
+      self:toggle(r)
    elseif r.kind == 'link' or r.kind == 'graph' then
       if self.on_activate then self:on_activate(r) end
    end
@@ -1076,12 +1072,18 @@ end
 function ui.sheet:on_copy()
    local r = self:selected()
    if not r or not self.copy_text then return end
-   local s = self:copy_text(r)
-   if s and clipboard then clipboard.addText(s) end
+   -- a box being typed in copies what it holds now
+   local s = self.edit and join(self.edit.chars) or self:copy_text(r)
+   if s and s ~= '' and clipboard then
+      clipboard.addText(s)
+      if self.on_copied then self:on_copied(s) end
+   end
 end
 
 function ui.sheet:on_cut()
    self:on_copy()
+   -- in a box being typed in, cut also clears it
+   if self.edit then self:on_clear() end
 end
 
 function ui.sheet:on_paste()

@@ -80,6 +80,8 @@ Z.UI = {
    ['Insert symbol...'] = '插入符号…',
    ['Clear field'] = '清空此格',
    ['Copy line'] = '复制此行',
+   ['Working for this formula'] = '此公式的步骤',
+   ['Copied'] = '已复制',
    ['Tag problem...'] = '给题目加标签…',
    -- toolpalette
    ['Problem'] = '题目',
@@ -132,7 +134,7 @@ Z.HINTS = {
    link = 'enter 打开 · 或按数字键',
    math = 'left/right 滚动',
    graph = 'enter 全屏',
-   formula = 'enter 查看此公式的步骤 · left/right 精确⇔小数',
+   formula = 'enter 精确⇔小数 · W 查看此公式的步骤',
    detail = 'esc 返回本题 · enter 精确⇔小数',
    history = 'enter 打开 · 打字 搜索 · del 删除 · esc 主页',
    example = 'enter 填入一道例题',
@@ -725,16 +727,16 @@ Z.HELP = {
       = '在结果上：enter 或点击切换 精确值 ⇔ 小数；左右键也可切换或滚动长答案。',
    ['On results/working: n / p next or previous problem, t tag, h history, d all decimal, e all exact.']
       = '在结果/步骤上：n / p 下一题/上一题，t 标签，h 历史，d 全部小数，e 全部精确值。',
-   ['ctrl+C copies the selected value or working line. menu opens the toolbar menu (new problem, tag, settings). ctrl+menu opens the context menu.']
-      = 'ctrl+C 复制选中的数值或步骤行。menu 打开菜单（新建、标签、设置）。ctrl+menu 打开快捷菜单。',
+   ['ctrl+C copies the selected line: an answer (as shown, exact or decimal), a working line, what is in a box, or a choice; the bottom bar shows what was copied. menu opens the toolbar menu (new problem, tag, settings). ctrl+menu opens the context menu.']
+      = 'ctrl+C 复制选中的一行：答案（按当前显示的精确值或小数）、步骤行、输入框里的内容或选项；底部提示栏会显示复制了什么。menu 打开菜单（新建、标签、设置）。ctrl+menu 打开快捷菜单。',
    ['Tips']
       = '提示',
    ['Decimal places: menu > Settings. Answers are rounded only for display; values keep full precision.']
       = '小数位数：menu › 设置。只在显示时四舍五入，内部保持全精度。',
    ['Kinematics: pick what is given (a(t), a(v), a(x), v(t), v(x), v²(x), x(t)), enter t0, x0, v0 (one known state) and optionally a second condition like x(2)=5. Choose what to find (everything, x, v, a or t) and type the instant in "when": t=3, v=0, x=5 or a=0. Find can also be one function, such as v(x), t(x) or x(v): it is worked out from the others. If something is missing, a note says which value to give.']
       = '运动学：选择已知类型（a(t)、a(v)、a(x)、v(t)、v(x)、v²(x)、x(t)），输入 t0、x0、v0（一个已知状态），可再加一个条件如 x(2)=5。在“求”里选要求的量（全部、x、v、a 或 t），在“当”里填时刻：t=3、v=0、x=5 或 a=0。“求”也可以选一个函数，如 v(x)、t(x) 或 x(v)：由其他关系推出。条件不够时会直接提示还缺哪个值。',
-   ['Kinematics formulas: select a derived formula such as x(v) and press enter to see only the working for that formula; its domain is shown under it. Unknown constants (k) come from a condition in "also", e.g. a=-3.5 when v=7 or a(7)=-3.5; several conditions are separated by ;.']
-      = '运动学公式：选中推导出的公式（如 x(v)）按 enter，只显示这个公式的步骤；公式下方显示定义域。未知常数（k）由“另一条件”求出，如 a=-3.5 when v=7 或 a(7)=-3.5；多个条件用 ; 分隔。',
+   ['Kinematics formulas: enter switches exact / decimal like every answer; select a derived formula such as x(v) and press W to see only the working for that formula; its domain is shown under it. Unknown constants (k) come from a condition in "also", e.g. a=-3.5 when v=7 or a(7)=-3.5; several conditions are separated by ;.']
+      = '运动学公式：和其他答案一样，按 enter 在精确值和小数之间切换；选中推导出的公式（如 x(v)）按 W，只显示这个公式的步骤；公式下方显示定义域。未知常数（k）由“另一条件”求出，如 a=-3.5 when v=7 或 a(7)=-3.5；多个条件用 ; 分隔。',
    ['Vector angle: type two vectors (2i-j+3k or (2,-1,3)), or choose three points for angle ABC (the vertex is B). Choose 0 to 180° for the angle between vectors, or acute for the angle between lines (180° − θ when θ is obtuse). With a letter such as m in a vector, type the angle in "given θ" to find m.']
       = '向量夹角：输入两个向量（2i-j+3k 或 (2,-1,3)），或选三个点求 ∠ABC（顶点是 B）。“0 到 180°”是向量的夹角；“锐角”是直线的夹角（θ 为钝角时取 180° − θ）。向量中有字母（如 m）时，在“已知”里填夹角即可求出 m。',
    ['Function graph: enter f(x) and the x window (the y window is optional). It finds asymptotes, turning points, points of inflection, intercepts, holes, jumps, endpoints and points where f is not differentiable; the choices show or hide each feature (asymptotes are dashed).']

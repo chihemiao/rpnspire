@@ -1,5 +1,17 @@
 [
   {
+    "version": "2.2.1",
+    "date": "2026-10-10",
+    "en": [
+      "Fix: enter now switches every answer between exact and decimal, kinematics formulas such as v(t) and x(v) too. The working for one formula moved to W (or ctrl+menu › Working for this formula).",
+      "ctrl+C copies more: an answer as it is shown (exact or decimal), a working line, the text in a box even while you type, or a choice. The bottom bar shows what was copied. ctrl+X in a box copies and clears it."
+    ],
+    "zh": [
+      "修复：按 enter 现在所有答案都能在精确值和小数之间切换，运动学的 v(t)、x(v) 等公式也一样。单个公式的步骤改为按 W 查看（或 ctrl+menu › 此公式的步骤）。",
+      "ctrl+C 能复制更多内容：按当前显示的答案（精确值或小数）、步骤行、输入框里的内容（正在输入时也行）、选项。底部提示栏会显示复制了什么。在输入框里按 ctrl+X 复制并清空。"
+    ]
+  },
+  {
     "version": "2.2",
     "date": "2026-10-10",
     "en": [
