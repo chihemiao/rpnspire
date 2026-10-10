@@ -1,5 +1,17 @@
 [
   {
+    "version": "2.3",
+    "date": "2026-10-10",
+    "en": [
+      "Kinematics: a new Formula row asks for one formula, such as v(x), t(x) or x(v). It is worked out from what is given, with the working. Find (x, v, a or t) and when still work beside it.",
+      "When a formula needs more information, the note says which known values to add, for example \"give x0 and v0\" for v(x) from a(t)."
+    ],
+    "zh": [
+      "运动学：新增“求公式”一行，可以直接选要的公式，比如 v(x)、t(x) 或 x(v)，由已知关系推出并写出步骤。“求值”（x、v、a 或 t）和“当”照常可用。",
+      "条件不够时，提示会写明还要填哪些已知值，比如由 a(t) 求 v(x) 会提示“还要填 x0 和 v0”。"
+    ]
+  },
+  {
     "version": "2.2.1",
     "date": "2026-10-10",
     "en": [

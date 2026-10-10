@@ -31,9 +31,9 @@ T.cases = {
    { 'kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', find = 't=1' }, 'q_x', 3.1945280 },
    { 'kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7', find = 'v=5' }, 'param_k', 0.1 },
    { 'kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7', find = 'v=5' }, 'q_x', 6.9314718 },
-   -- a function chosen in Find, evaluated at a point
-   { 'kinematics', { type = 'x(t)', f = 't^2+2t', want = 'vx' }, 'vx|q9x=3', 4 },
-   { 'kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', want = 'v2x' }, 'v2x|q9x=2', 25 },
+   -- a function chosen in Formula, evaluated at a point
+   { 'kinematics', { type = 'x(t)', f = 't^2+2t', fn = 'vx' }, 'vx|q9x=3', 4 },
+   { 'kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', fn = 'v2x' }, 'v2x|q9x=2', 25 },
    -- vectors (Specialist Maths)
    { 'vectors', { a = 'i+2j-2k', b = '2i-j+2k' }, 'theta', 116.38780 },
    { 'vectors', { a = 'i+2j-2k', b = '2i-j+2k', range = 'acute' }, 'acute', 63.612200 },

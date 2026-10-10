@@ -904,7 +904,7 @@ local function kin_find_function_cases()
       return cas.n(cas.with(R:get(key), { { var, val } }))
    end
    -- x(t) = t^2 + 2t: t(x) through t = 0, then v(x) = v(t(x))
-   local R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'vx' })
+   local R = run('kinematics', { type = 'x(t)', f = 't^2+2t', fn = 'vx' })
    no_errors(R)
    Test.assert(#R.results == 1 and R.results[1].key == 'vx', 'only v(x) shown')
    near(at(R, 'vx', 'q9x', '3'), 4, 1e-6, 'v(3) = 4 (t = 1)')
@@ -913,27 +913,104 @@ local function kin_find_function_cases()
    text = table.concat(text, ' | ')
    Test.assert(text:find('Given x', 1, true) and text:find('v = dx/dt', 1, true), 'working from x(t): ' .. text)
    Test.assert(text:find('Solve x', 1, true) and text:find('Substitute t = t(x) into v(t)', 1, true), 'invert and substitute: ' .. text)
-   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'tx' })
+   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', fn = 'tx' })
    near(at(R, 'tx', 'q9x', '3'), 1, 1e-9, 't(3) = 1, the branch through t = 0')
-   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'v2x' })
+   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', fn = 'v2x' })
    near(at(R, 'v2x', 'q9x', '3'), 16, 1e-9, 'v squared')
-   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'ax' })
+   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', fn = 'ax' })
    near(at(R, 'ax', 'q9x', '3'), 2, 1e-5, 'a(x) (numeric derivative in the mock)')
    -- a given function is shown as it is, with the value at the 'when' instant
-   R = run('kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', want = 'vx', find = 'x=2' })
+   R = run('kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', fn = 'vx', want = 'v', find = 'x=2' })
    Test.assert(#R.results == 2 and R.by_key.vx and R.by_key.q_v, 'v(x) and v when x = 2')
    near(rnum(R, 'q_v'), 5, 1e-9, 'v(2)')
+   -- Find everything with a formula: the formula and every answer to 'when'
+   R = run('kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', fn = 'vx', find = 'x=2' })
+   local shown = {}
+   for _, r in ipairs(R.results) do table.insert(shown, r.key) end
+   Test.assert(table.concat(shown, ' ') == 'vx q_v q_a q_t', 'v(x) and the values when x = 2: ' .. table.concat(shown, ' '))
+   -- a document saved before the Formula row kept the function in Find
+   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'vx' })
+   Test.assert(#R.results == 1 and R.by_key.vx, 'v(x) from an older document')
+   local app0 = require 'apps.vce.app'
+   app0.restore_state({ v = 1, history = { items = { { id = 1, solver = 'kinematics',
+                        inputs = { type = 'x(t)', f = 't^2+2t', want = 'vx' } } } } })
+   local up = app0.history.items[1].inputs
+   Test.assert(up.fn == 'vx' and up.want == nil, 'moved to the Formula row on load')
    -- a missing value is named
-   R = run('kinematics', { type = 'a(t)', f = '6t', v0 = '2', want = 'vx' })
+   R = run('kinematics', { type = 'a(t)', f = '6t', v0 = '2', fn = 'vx' })
    Test.assert(#R.results == 0 and #R.notes == 1, 'nothing found')
    Test.assert(report.plain(R.notes[1].text):find('^Not enough conditions to find v%(x%): give x0'),
                'asks for x0: ' .. report.plain(R.notes[1].text))
    -- in the app: choosing a function solves again; a quantity does not
    local app = require 'apps.vce.app'
    app.open(nil)
-   app.new_problem('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'vx' })
+   app.new_problem('kinematics', { type = 'x(t)', f = 't^2+2t', fn = 'vx' })
    Test.assert(app.last_report.by_key.vx and #app.last_report.results == 1, 'v(x) in the app')
    require('ui').on_event('escape')
+end
+
+-- Formula row: the note says which known values to add
+function test.kin_formula_needs()
+   local function note(I)
+      I.type = I.type or 'a(t)'
+      local R = run('kinematics', I)
+      Test.assert(#R.results == 0, I.type .. ' ' .. I.fn .. ': nothing to show')
+      Test.assert(#R.notes == 1, I.type .. ' ' .. I.fn .. ': one note')
+      return report.plain(R.notes[1].text)
+   end
+   local cases = {
+      { { f = '6t', fn = 'vx' }, 'v(x): give x0 and v0' },
+      { { f = '6t', fn = 'vt' }, 'v(t): give v0' },
+      { { f = '6t', x0 = '1', fn = 'av' }, 'a(v): give v0' },
+      { { f = '6t', v0 = '2', fn = 'xt' }, 'x(t): give x0' },
+      { { type = 'v(t)', f = '3t^2', fn = 'xv' }, 'x(v): give x0' },
+      { { type = 'v(x)', f = '2x+1', fn = 'tx' }, 't(x): give x0' },
+      { { type = 'a(x)', f = '-4x', x0 = '1', fn = 'vx' }, 'v(x): give v0' },
+      { { type = 'a(x)', f = '-4x', v0 = '2', fn = 'xt' }, 'x(t): give x0' },
+      { { type = 'a(x)', f = '-4x', fn = 'tv' }, 't(v): give x0 and v0' },
+      { { type = 'a(v)', f = '-v/2', v0 = '10', fn = 'xv' }, 'x(v): give x0' },
+      { { type = 'a(v)', f = '-v/2', x0 = '0', fn = 'vt' }, 'v(t): give v0' },
+      { { type = 'a(x)', f = '-4x', x0 = '1', c2 = 'v(2)=3', fn = 'vx' }, 'v(x): give x and v at the same time' },
+   }
+   for _, c in ipairs(cases) do
+      local text = note(c[1])
+      Test.assert(text:find('Not enough conditions to find ' .. c[2], 1, true), c[2] .. ': ' .. text)
+   end
+   -- with the values the same formula is found
+   local R = run('kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2', fn = 'vt' })
+   Test.assert(#R.results == 1 and R.by_key.vt and #R.notes == 0, 'v(t) with v0')
+   R = run('kinematics', { type = 'a(x)', f = '-4x', x0 = '1', v0 = '2', fn = 'v2x' })
+   Test.assert(#R.results == 1 and R.by_key.v2x, 'v squared with x0 and v0')
+   near(cas.n(cas.with(R:get('v2x'), { { 'q9x', '0' } })), 8, 1e-6, 'v^2 = 4 + 4(1 - x^2)')
+   -- in the app: choosing a formula brings the note into view, the
+   -- Formula row stays selected
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   app.open(nil)
+   app.new_problem('kinematics', { type = 'a(t)', f = '6t', v0 = '2' })
+   local sh = app.sheet
+   for i, r in ipairs(sh.rows) do
+      if r.id == 'fn' then sh:select(i) end
+   end
+   sh.scroll_y = 0
+   for _ = 1, 4 do ui.on_event('right') end
+   Test.assert(app.current().inputs.fn == 'vx', 'Formula set to v(x)')
+   Test.assert(sh:selected().id == 'fn', 'Formula still selected')
+   local seen
+   sh:with_layout(function()
+      local h = sh:frame().height
+      for _, r in ipairs(sh.rows) do
+         if r.kind == 'note' and report.plain(r.text):find('find v(x): give x0', 1, true) then
+            seen = r._y >= sh.scroll_y and r._y + r._lay.h <= sh.scroll_y + h
+         end
+      end
+   end)
+   Test.assert(seen, 'note on screen')
+   ui.on_event('escape')
+   -- the Formula row comes before Find and when
+   local ids = {}
+   for i, f in ipairs(require('apps.vce.registry').get('kinematics').fields) do ids[f.id] = i end
+   Test.assert(ids.fn and ids.fn < ids.want and ids.want < ids.find, 'Formula, Find, when')
 end
 
 function test.kin_find_function()
@@ -1822,8 +1899,10 @@ function test.i18n_coverage()
       { 'kinematics', { type = 'a(x)', f = '-4x', want = 't', find = 'x=1' } },
       { 'kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', want = 'x' } },
       { 'kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', want = 'v', find = 'v=5' } },
-      { 'kinematics', { type = 'a(t)', f = '6t', v0 = '2', want = 'vx' } },
-      { 'kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2', want = 'vx' } },
+      { 'kinematics', { type = 'a(t)', f = '6t', v0 = '2', fn = 'vx' } },
+      { 'kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2', fn = 'vx' } },
+      { 'kinematics', { type = 'a(t)', f = '6t', fn = 'vx' } },
+      { 'kinematics', { type = 'a(x)', f = '-4x', x0 = '1', c2 = 'v(2)=3', fn = 'vx' } },
       { 'vectors', { mode = 'pts' } }, { 'vectors', { a = 'hello', b = 'i' } }, { 'vectors', { a = '0i', b = 'i' } },
       { 'vectors', { a = '(1,1,m)', b = '(1,0,1)' } },
       { 'vectors', { a = '(1,1,m)', b = '(1,0,1)', given = '120', range = 'acute' } },

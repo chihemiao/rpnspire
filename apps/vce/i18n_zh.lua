@@ -345,7 +345,8 @@ Z.FIELDS = {
       x0 = { hint = 'position 位置 (t0 时)' },
       v0 = { hint = 'velocity 速度 (t0 时)' },
       c2 = { label = '另一条件', hint = 'x(2)=5   v=2,x=1   a=-3.5,v=7（求 k）' },
-      want = { label = '求' },
+      fn = { label = '求公式' },
+      want = { label = '求值' },
       find = { label = '当', hint = 't=3   v=0   x=5   a=0' },
       t1 = { label = '从', hint = 'displacement 位移 / distance 路程' },
       t2 = { label = '到' },
@@ -372,6 +373,7 @@ Z.OPTIONS = {
       unit = { deg = 'degrees 角度', rad = 'radians 弧度' },
    },
    kinematics = {
+      fn = { none = 'none 不求' },
       want = { all = 'everything 全部', x = 'x  position 位置', v = 'v  velocity 速度',
                a = 'a  acceleration 加速度', t = 't  time 时间' },
    },
@@ -633,6 +635,8 @@ Z.NOTES = {
    { '^Not enough conditions to find (%a) when (.-): give v0.*$', '条件不够：求 %2 时的 %1 需要 v0（已知某时刻的速度）' },
    { '^Not enough conditions to find (%a) when (.-): give t0.*$', '条件不够：求 %2 时的 %1 需要 t0 以及 x0 或 v0' },
    { '^Not enough conditions to find (%a) when (.+)$', '条件不够：无法求 %2 时的 %1' },
+   { '^Not enough conditions to find (%S+): give x0 and v0.*$', '条件不够：求 %1 还要填 x0 和 v0（同一时刻的位置和速度）' },
+   { '^Not enough conditions to find (%S+): give x and v at the same time.*$', '条件不够：求 %1 要知道同一时刻的 x 和 v（填 x0 和 v0，或在“另一条件”填 v=2,x=1）' },
    { '^Not enough conditions to find (%S+): give x0.*$', '条件不够：求 %1 需要 x0（已知某时刻的位置）' },
    { '^Not enough conditions to find (%S+): give v0.*$', '条件不够：求 %1 需要 v0（已知某时刻的速度）' },
    { '^Not enough conditions to find (%S+): give t0.*$', '条件不够：求 %1 需要 t0 以及 x0 或 v0' },
@@ -733,8 +737,8 @@ Z.HELP = {
       = '提示',
    ['Decimal places: menu > Settings. Answers are rounded only for display; values keep full precision.']
       = '小数位数：menu › 设置。只在显示时四舍五入，内部保持全精度。',
-   ['Kinematics: pick what is given (a(t), a(v), a(x), v(t), v(x), v²(x), x(t)), enter t0, x0, v0 (one known state) and optionally a second condition like x(2)=5. Choose what to find (everything, x, v, a or t) and type the instant in "when": t=3, v=0, x=5 or a=0. Find can also be one function, such as v(x), t(x) or x(v): it is worked out from the others. If something is missing, a note says which value to give.']
-      = '运动学：选择已知类型（a(t)、a(v)、a(x)、v(t)、v(x)、v²(x)、x(t)），输入 t0、x0、v0（一个已知状态），可再加一个条件如 x(2)=5。在“求”里选要求的量（全部、x、v、a 或 t），在“当”里填时刻：t=3、v=0、x=5 或 a=0。“求”也可以选一个函数，如 v(x)、t(x) 或 x(v)：由其他关系推出。条件不够时会直接提示还缺哪个值。',
+   ['Kinematics: pick what is given (a(t), a(v), a(x), v(t), v(x), v²(x), x(t)), enter t0, x0, v0 (one known state) and optionally a second condition like x(2)=5. For one formula such as v(x), t(x) or x(v), choose it in Formula: it is worked out from the others, with the working. Choose what to find (everything, x, v, a or t) and type the instant in "when": t=3, v=0, x=5 or a=0. If something is missing, a note says which known value to give (such as x0 and v0).']
+      = '运动学：选择已知类型（a(t)、a(v)、a(x)、v(t)、v(x)、v²(x)、x(t)），输入 t0、x0、v0（一个已知状态），可再加一个条件如 x(2)=5。要一个指定的公式（如 v(x)、t(x) 或 x(v)）就在“求公式”里选，它由其他关系推出并写出步骤。在“求值”里选要求的量（全部、x、v、a 或 t），在“当”里填时刻：t=3、v=0、x=5 或 a=0。条件不够时会直接提示还要填哪个已知值（如 x0 和 v0）。',
    ['Kinematics formulas: enter switches exact / decimal like every answer; select a derived formula such as x(v) and press W to see only the working for that formula; its domain is shown under it. Unknown constants (k) come from a condition in "also", e.g. a=-3.5 when v=7 or a(7)=-3.5; several conditions are separated by ;.']
       = '运动学公式：和其他答案一样，按 enter 在精确值和小数之间切换；选中推导出的公式（如 x(v)）按 W，只显示这个公式的步骤；公式下方显示定义域。未知常数（k）由“另一条件”求出，如 a=-3.5 when v=7 或 a(7)=-3.5；多个条件用 ; 分隔。',
    ['Vector angle: type two vectors (2i-j+3k or (2,-1,3)), or choose three points for angle ABC (the vertex is B). Choose 0 to 180° for the angle between vectors, or acute for the angle between lines (180° − θ when θ is obtuse). With a letter such as m in a vector, type the angle in "given θ" to find m.']

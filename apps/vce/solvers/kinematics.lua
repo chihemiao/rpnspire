@@ -14,18 +14,20 @@ local TYPES = {
    { 'x(t)', 'x = f(t)' },
 }
 
--- Functions that Find can show (worked out when the steps do not give them)
+-- Functions the Formula row can ask for (worked out when the steps do not
+-- give them)
 local FUNCTIONS = {
    { 'xt', 'x(t)' }, { 'vt', 'v(t)' }, { 'at', 'a(t)' }, { 'vx', 'v(x)' }, { 'v2x', 'v' .. U.SQ .. '(x)' },
    { 'ax', 'a(x)' }, { 'tx', 't(x)' }, { 'xv', 'x(v)' }, { 'tv', 't(v)' }, { 'av', 'a(v)' },
 }
 local FN = {}
-local WANT = { { 'all', 'everything' }, { 'x', 'x  position' }, { 'v', 'v  velocity' },
-               { 'a', 'a  acceleration' }, { 't', 't  time' } }
+local FORMULA = { { 'none', 'none' } }
 for _, f in ipairs(FUNCTIONS) do
    FN[f[1]] = f[2]
-   table.insert(WANT, f)
+   table.insert(FORMULA, f)
 end
+local WANT = { { 'all', 'everything' }, { 'x', 'x  position' }, { 'v', 'v  velocity' },
+               { 'a', 'a  acceleration' }, { 't', 't  time' } }
 
 local S = {
    id = 'kinematics',
@@ -46,9 +48,11 @@ local S = {
       { id = 'c2', label = 'also', hint = 'x(2)=5   v=2,x=1   a=-3.5,v=7 (finds k)' },
       { id = 't1', label = 'from t=', hint = 'displacement / distance' },
       { id = 't2', label = 'to t=', hint = '' },
-      -- what to work out: everything, one quantity (x, v, a or t) or one
-      -- function such as v(x); last, so enter on 'when' goes straight to the
-      -- answer
+      -- one function to work out, such as v(x) from a(t); choosing one
+      -- scrolls to it (or to the note saying which value to add)
+      { id = 'fn', label = 'Formula', kind = 'choice', options = FORMULA, reveal = true },
+      -- what to work out: everything or one quantity (x, v, a or t); last,
+      -- so enter on 'when' goes straight to the answer
       { id = 'want', label = 'Find', kind = 'choice', options = WANT },
       { id = 'find', label = 'when', hint = 't=3   v=0   x=5   a=0' },
    },
@@ -56,6 +60,25 @@ local S = {
 }
 
 local MAP = U.locals_map()
+
+-- The function in the Formula row (nil for none) and the quantity in Find.
+-- Before the Formula row a function was chosen in Find (want = 'vx').
+local function targets(I)
+   local fn, want = I.fn, I.want or 'all'
+   if FN[want] then
+      if not FN[fn] then fn = want end
+      want = 'all'
+   end
+   return FN[fn] and fn or nil, want
+end
+
+-- Documents saved before the Formula row: move the function to it
+function S.upgrade(inputs)
+   if FN[inputs.want] then
+      inputs.fn = FN[inputs.fn] and inputs.fn or inputs.want
+      inputs.want = nil
+   end
+end
 
 -- Variable of the given function: a(v) -> v, v(x) -> x, x(t) -> t
 local function indep_of(kind)
@@ -683,8 +706,8 @@ function S.solve(I, R)
       end
    end
 
-   local want = I.want
-   if FN[want] and not K[want] then
+   local want = targets(I)
+   if want and not K[want] then
       local q, p = want:sub(1, 1), want:sub(-1)
       local e, lines, deps
       for depth = 1, 2 do
@@ -706,11 +729,15 @@ function S.solve(I, R)
 
    -- Questions ---------------------------------------------------------------
    -- what is known, for S.view: which quantities are given at a known time
-   local kin = { kind = kind, has = {} }
+   -- and which pairs are known together (tv: v at a known time)
+   local kin = { kind = kind, has = {}, pairs = {} }
    for _, c in ipairs(conds) do
       for _, q in ipairs({ 't', 'x', 'v', 'a' }) do
          if c[q] then kin.has[q] = true end
       end
+   end
+   for _, pq in ipairs({ 'tv', 'tx', 'xv' }) do
+      kin.pairs[pq] = find_cond(pq:sub(1, 1), pq:sub(2)) ~= nil
    end
    R.kin = kin
    local find = I.find and U.trim(I.find) ~= '' and I.find or nil
@@ -960,8 +987,9 @@ end
 -- What to show -----------------------------------------------------------------
 
 -- Choosing a quantity in Find only changes what is shown, so the app applies
--- it to the cached solution without solving again. A function (v(x)) may
--- need more working, so choosing one solves again.
+-- it to the cached solution without solving again. A function in the
+-- Formula row (v(x)) may need more working, so choosing one solves again
+-- (and so does one left in Find by an older document).
 S.view_fields = { want = function(v) return not FN[v] end }
 
 -- Formula results for each quantity (without a 'when' question)
@@ -988,20 +1016,67 @@ local function not_enough(q, kin)
    return m and (text .. ': ' .. m) or text
 end
 
--- Function q(p) not found: say which value is missing
+-- Known values each function needs, by what is given: tv = v at a known
+-- time (v0), tx = x at a known time (x0), xv = v at a known position (x0
+-- and v0 together). Each integration needs one: a(t) gives v(t) with v0,
+-- then x(t) with x0. Functions not listed need none (differentiate, solve
+-- for the other variable or substitute).
+local IN_X = { 'xt', 'tx', 'vx', 'v2x', 'ax', 'xv' }
+local IN_T = { 'xt', 'vt', 'at', 'tx', 'tv' }
+local NEEDS = {}
+local function need(kind, keys, list)
+   NEEDS[kind] = NEEDS[kind] or {}
+   for _, k in ipairs(keys) do NEEDS[kind][k] = list end
+end
+need('a(t)', { 'vt', 'tv', 'av' }, { 'tv' })
+need('a(t)', IN_X, { 'tv', 'tx' })
+need('v(t)', IN_X, { 'tx' })
+need('v(x)', IN_T, { 'tx' })
+need('v2(x)', IN_T, { 'tx' })
+need('a(x)', { 'v2x', 'vx', 'xv', 'av' }, { 'xv' })
+need('a(x)', IN_T, { 'xv', 'tx' })
+need('a(v)', { 'tv', 'vt', 'at' }, { 'tv' })
+need('a(v)', { 'xv', 'vx', 'v2x', 'ax' }, { 'xv' })
+need('a(v)', { 'xt', 'tx' }, { 'tv', 'tx' })
+
+-- Function key not found: say which known values to add (nil when none is
+-- missing, so the CAS could not do it)
+local function to_give(key, kin)
+   local x0, v0, apart
+   for _, pq in ipairs((NEEDS[kin.kind] or {})[key] or {}) do
+      if not kin.pairs[pq] then
+         if pq == 'tv' then
+            v0 = true
+         elseif pq == 'tx' then
+            x0 = true
+         else
+            -- v at a known x: both in the same state
+            if not kin.has.x then x0 = true end
+            if not kin.has.v then v0 = true end
+            if kin.has.x and kin.has.v then apart = true end
+         end
+      end
+   end
+   if x0 and v0 then return 'give x0 and v0 (x and v at a known time)' end
+   if x0 then return 'give x0 (x at a known time)' end
+   if v0 then return 'give v0 (v at a known time)' end
+   if apart then return 'give x and v at the same time (x0 and v0, or v=2,x=1 in also)' end
+end
+
 local function not_enough_fn(key, kin)
-   local m = missing(key:sub(1, 1), kin) or missing(key:sub(-1), kin)
+   local m = to_give(key, kin)
    if not m then return 'Could not find ' .. FN[key] end
    return 'Not enough conditions to find ' .. FN[key] .. ': ' .. m
 end
 
 -- Add a 'not enough conditions' note in place of the older technical ones
--- ('Need x at a known t ...'), so one clear message says what is missing
+-- ('Need x at a known t ...', 'Enter v0 ...'), so one clear message says
+-- what is missing
 local function tell(R, text)
    if not R.told then
       local keep = {}
       for _, n in ipairs(R.notes) do
-         if not (n.text:find('^Need ') or n.text:find('^Not enough conditions to find when')) then
+         if not (n.text:find('^Need ') or n.text:find('^Enter v0') or n.text:find('^Not enough conditions to find when')) then
             table.insert(keep, n)
          end
       end
@@ -1015,56 +1090,44 @@ function S.view(I, R)
    local kin = R.kin
    if not kin then return end
    R.told = nil
-   local want = I.want or 'all'
+   local fn, want = targets(I)
+   local function base(r) return ((r.key or ''):gsub('%d+$', '')) end
    local function have(key)
       for _, r in ipairs(R.results) do
-         if r.key and r.key:gsub('%d+$', '') == key then return true end
+         if base(r) == key then return true end
       end
    end
-   if want == 'all' then
-      -- a 'when' question: say which quantities need more information
-      if kin.var then
-         for _, q in ipairs({ 'x', 'v', 't' }) do
-            if q ~= kin.var and not have('q_' .. q) and missing(q, kin) then
-               tell(R, not_enough(q, kin))
-            end
-         end
-      end
-      return
-   end
-   if FN[want] then
-      -- the function (and its value at the 'when' instant)
-      local keep, found = {}, false
-      for _, r in ipairs(R.results) do
-         local base = (r.key or ''):gsub('%d+$', '')
-         if base == want then found = true end
-         if base == want or base:match('^param_') or (kin.var and base == 'q_' .. want:sub(1, 1)) then
-            table.insert(keep, r)
-         end
-      end
-      R.results = keep
-      if not found then tell(R, not_enough_fn(want, kin)) end
-      return
-   end
-   if kin.var == want then
+   if want ~= 'all' and kin.var == want then
       R:note('You already know ' .. want .. ': choose another quantity to find', 'warn')
-      return
+      want = 'all'
    end
-   -- keep only the chosen quantity (and any constant found on the way)
-   local keep, found = {}, false
-   for _, r in ipairs(R.results) do
-      local base = (r.key or ''):gsub('%d+$', '')
-      local wanted
-      if kin.var then
-         wanted = base == 'q_' .. want
-      else
-         wanted = FORMULAS[want][base]
+   if want == 'all' and kin.var then
+      -- a 'when' question: say which quantities need more information
+      for _, q in ipairs({ 'x', 'v', 't' }) do
+         if q ~= kin.var and not have('q_' .. q) and missing(q, kin) then
+            tell(R, not_enough(q, kin))
+         end
       end
-      if wanted then found = true end
-      if wanted or base:match('^param_') then table.insert(keep, r) end
+   end
+   if want == 'all' and not fn then return end
+   -- keep the formula, the chosen quantity (or with a formula, the answers
+   -- to 'when') and any constant found on the way
+   local function quantity(b)
+      if want == 'all' then return kin.var ~= nil and b:match('^q_') ~= nil end
+      if kin.var then return b == 'q_' .. want end
+      return FORMULAS[want][b]
+   end
+   local keep, got_fn, got_q = {}, false, false
+   for _, r in ipairs(R.results) do
+      local b = base(r)
+      local q = quantity(b)
+      if b == fn then got_fn = true end
+      if q then got_q = true end
+      if b == fn or q or b:match('^param_') then table.insert(keep, r) end
    end
    R.results = keep
-   if not found then tell(R, not_enough(want, kin)) end
+   if fn and not got_fn then tell(R, not_enough_fn(fn, kin)) end
+   if want ~= 'all' and not got_q then tell(R, not_enough(want, kin)) end
 end
 
 return S

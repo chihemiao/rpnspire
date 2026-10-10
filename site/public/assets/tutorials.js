@@ -182,8 +182,8 @@
       course: ['SM'],
       title: { zh: '运动学（变加速度）', en: 'Kinematics (variable acceleration)' },
       pitch: {
-        zh: '给出 a(t)、a(v)、a(x)、v(t)、v(x) 或 x(t)，自动选对公式，求 t、x、v、a；条件不够时会告诉你缺什么。',
-        en: 'Give a(t), a(v), a(x), v(t), v(x) or x(t): it picks the right form and finds t, x, v and a, and tells you when a condition is missing.',
+        zh: '给出 a(t)、a(v)、a(x)、v(t)、v(x) 或 x(t)，自动选对公式，求 t、x、v、a；要 v(x) 这类指定公式就在“求公式”里选；条件不够时会告诉你还要填什么。',
+        en: 'Give a(t), a(v), a(x), v(t), v(x) or x(t): it picks the right form and finds t, x, v and a, or one formula such as v(x) from the Formula row, and tells you which known value is missing.',
       },
       question: {
         zh: '一个质点沿直线运动，加速度 $a=−(1+v^2)$ m/s²，v m/s 是它在 t 秒时的速度。开始时质点在原点，速度为 1 m/s。求它停下来所用的时间，以及这段时间里走过的距离。',
@@ -236,9 +236,9 @@
           en: 'The starting state: t0 = 0, x0 = 0, v0 = 1.',
         },
         {
-          keys: '{enter*3}{down}',
-          zh: '接下来三格这题用不到，按 <kbd>enter</kbd> 跳过；Find 保持 everything（全部求），按 <kbd>▼</kbd>。',
-          en: 'Skip the next three boxes with <kbd>enter</kbd>; keep Find = everything and press <kbd>▼</kbd>.',
+          keys: '{enter*3}{down*2}',
+          zh: '接下来三格这题用不到，按 <kbd>enter</kbd> 跳过；Formula（求公式）保持 none，Find 保持 everything（全部求），按两次 <kbd>▼</kbd>。',
+          en: 'Skip the next three boxes with <kbd>enter</kbd>; keep Formula = none and Find = everything, and press <kbd>▼</kbd> twice.',
         },
         {
           keys: 'v=0{enter}',

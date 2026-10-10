@@ -611,6 +611,22 @@ function A.on_choice(row)
    local p = A.current()
    p.inputs[row.id] = row.options[row.index][1]
    A.refresh_problem(true)
+   -- a choice that asks for one answer (kinematics Formula) brings it, or
+   -- the note saying what is missing, into view
+   local f = A.field_of(row)
+   if f and f.reveal and row.index > 1 then A.reveal_answer() end
+end
+
+-- Scroll the first answer, or else the first warning, into view; the
+-- selection stays where it is
+function A.reveal_answer()
+   local sh = A.sheet
+   local note
+   for i, r in ipairs(sh.rows) do
+      if r.kind == 'result' then return sh:reveal(i) end
+      if not note and r.kind == 'note' and (r.level == 'warn' or r.level == 'error') then note = i end
+   end
+   if note then sh:reveal(note) end
 end
 
 -- Choice with many options: pick from a list
@@ -1284,6 +1300,11 @@ end
 function A.restore_state(state)
    if type(state) ~= 'table' then return end
    A.history = History.load(state.history)
+   -- inputs saved by an older version (a solver may move them)
+   for _, p in ipairs(A.history.items) do
+      local sv = solvers.get(p.solver)
+      if sv and sv.upgrade then sv.upgrade(p.inputs) end
+   end
    local s = state.settings
    if type(s) == 'table' then
       A.settings.dp = tonumber(s.dp) or A.settings.dp
