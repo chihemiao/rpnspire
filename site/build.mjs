@@ -94,7 +94,7 @@ fs.writeFileSync(path.join(DIST, 'features.json'), JSON.stringify(features));
 
 // Fill the page: topics, changelog, version, sizes; cache-busting stamp
 const stamp = sha256(JSON.stringify(info) + fs.readFileSync(path.join(DIST, 'emu/vce_web.txt'), 'utf8') +
-  ['assets/site.js', 'assets/site.css', 'assets/tutorials.js', 'assets/timath.js', 'emu/emulator.js', 'emu/core.js', 'emu/host.txt']
+  ['assets/site.js', 'assets/nspire-usb.js', 'assets/site.css', 'assets/tutorials.js', 'assets/timath.js', 'emu/emulator.js', 'emu/core.js', 'emu/host.txt']
     .map((f) => fs.readFileSync(path.join(DIST, f), 'utf8')).join('')).slice(0, 10);
 
 const both = (zh, en) => `<span lang="zh">${zh}</span><span lang="en">${en}</span>`;

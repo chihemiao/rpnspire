@@ -152,8 +152,9 @@
           <small>vce_zh.tns · {{SIZE_ZH}}</small>
         </a>
         <a class="btn small dl-send" href="/downloads/vce_zh.tns" download="vce_zh.tns" data-send>
-          <span lang="zh">下载并发送到计算器 ↗</span><span lang="en">Download &amp; send to calculator ↗</span>
+          <span lang="zh">发送到计算器</span><span lang="en">Send to calculator</span>
         </a>
+        <p class="send-status" role="status" aria-live="polite" hidden data-send-status></p>
       </article>
       <article class="dl-card">
         <div class="dl-flag" aria-hidden="true">EN</div>
@@ -167,8 +168,9 @@
           <small>vce.tns · {{SIZE_EN}}</small>
         </a>
         <a class="btn small dl-send" href="/downloads/vce.tns" download="vce.tns" data-send>
-          <span lang="zh">下载并发送到计算器 ↗</span><span lang="en">Download &amp; send to calculator ↗</span>
+          <span lang="zh">发送到计算器</span><span lang="en">Send to calculator</span>
         </a>
+        <p class="send-status" role="status" aria-live="polite" hidden data-send-status></p>
       </article>
     </div>
     <p class="send-note" hidden data-send-note>
@@ -186,20 +188,20 @@
         <h3><span lang="zh">安装：3 步</span><span lang="en">Install in 3 steps</span></h3>
         <ol class="big-steps">
           <li>
-            <span lang="zh">下载上面的 <code>.tns</code> 文件。</span>
-            <span lang="en">Download a <code>.tns</code> file above.</span>
+            <span lang="zh">下载上面的 <code>.tns</code> 文件（用“发送到计算器”的话可以跳过这一步）。</span>
+            <span lang="en">Download a <code>.tns</code> file above (skip this if you use “Send to calculator”).</span>
           </li>
           <li>
-            <span lang="zh">用数据线连上计算器，再选一种方法传过去：</span>
-            <span lang="en">Connect the calculator with its cable, then send the file one of two ways:</span>
+            <span lang="zh">用数据线连上计算器（开着机），点上面的<strong>“发送到计算器”</strong>。第一次会弹出一个小窗口，选你的计算器、点“连接”；以后点一下就直接发送。需要电脑上的 Chrome 或 Edge。</span>
+            <span lang="en">Connect the calculator (switched on) and press <strong>“Send to calculator”</strong> above. The first time, a small window asks you to pick your calculator and press Connect; after that one press sends it. Needs Chrome or Edge on a computer.</span>
             <ul class="send-ways">
               <li>
-                <span lang="zh"><strong>不用装软件：</strong>点上面的“下载并发送到计算器”，它会下载文件，同时打开 TI 官方的免费网页 <a href="https://nspireconnect.ti.com/" target="_blank" rel="noopener">TI-Nspire CX II Connect</a>（电脑上的 Chrome 或 Edge）。在那里点 Connect to calculator 选你的计算器，再到 File Transfer › From computer，选刚下载的文件。</span>
-                <span lang="en"><strong>No install:</strong> press “Download &amp; send to calculator” above. It downloads the file and opens TI's free web app <a href="https://nspireconnect.ti.com/" target="_blank" rel="noopener">TI-Nspire CX II Connect</a> (Chrome or Edge on a computer). There, press Connect to calculator and pick yours, then File Transfer › From computer and choose the file you just downloaded.</span>
+                <span lang="zh"><strong>也可以：</strong>用 TI 官方的免费网页 <a href="https://nspireconnect.ti.com/" target="_blank" rel="noopener">TI-Nspire CX II Connect</a>，点 Connect to calculator 选你的计算器，再到 File Transfer › From computer，选下载好的文件。</span>
+                <span lang="en"><strong>Or:</strong> in TI's free web app <a href="https://nspireconnect.ti.com/" target="_blank" rel="noopener">TI-Nspire CX II Connect</a>, press Connect to calculator and pick yours, then File Transfer › From computer and choose the downloaded file.</span>
               </li>
               <li>
-                <span lang="zh"><strong>Student Software：</strong>打开电脑上的 TI-Nspire CX Student Software，把文件拖到连着的计算器上。</span>
-                <span lang="en"><strong>Student Software:</strong> open TI-Nspire CX Student Software and drag the file onto the connected calculator.</span>
+                <span lang="zh"><strong>或者：</strong>打开电脑上的 TI-Nspire CX Student Software，把文件拖到连着的计算器上。</span>
+                <span lang="en"><strong>Or:</strong> open TI-Nspire CX Student Software and drag the file onto the connected calculator.</span>
               </li>
             </ul>
           </li>
@@ -217,8 +219,8 @@
             <span lang="en">Check your version: <kbd>menu</kbd> › Help shows it in the title bar, like <strong>v{{VERSION}}</strong>.</span>
           </li>
           <li>
-            <span lang="zh">比这里旧，就用同样的方法把新文件传到计算器上。CX II Connect 遇到同名文件会另存一份带编号的，所以先在计算器上删掉旧文件。</span>
-            <span lang="en">If it is older than this page, send the new file the same way. CX II Connect saves a numbered copy when the name is taken, so delete the old file on the calculator first.</span>
+            <span lang="zh">比这里旧，就用同样的方法把新文件发送到计算器。（用 CX II Connect 的话，它遇到同名文件会另存一份带编号的，记得删掉旧文件。）</span>
+            <span lang="en">If it is older than this page, send the new file the same way. (CX II Connect saves a numbered copy when the name is taken, so delete the old file afterwards.)</span>
           </li>
           <li>
             <span lang="zh">想第一时间知道？在下面的反馈表里勾选“有新版本时通知我”。</span>
@@ -380,6 +382,7 @@
 <script src="/emu/emulator.js?v={{STAMP}}" defer></script>
 <script src="/assets/timath.js?v={{STAMP}}" defer></script>
 <script src="/assets/tutorials.js?v={{STAMP}}" defer></script>
+<script src="/assets/nspire-usb.js?v={{STAMP}}" defer></script>
 <script src="/assets/site.js?v={{STAMP}}" defer></script>
 </body>
 </html>

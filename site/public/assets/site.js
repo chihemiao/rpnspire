@@ -303,14 +303,90 @@
   }
 
   // Send to calculator ---------------------------------------------------------------
-  // The link downloads the .tns as usual; where the browser has WebUSB it also
-  // opens TI's CX II Connect web app, which sends the file to the calculator.
-  // (No website can start Student Software or hand a file to another site.)
+  // In Chrome and Edge the page sends the .tns straight to a CX II over USB
+  // (assets/nspire-usb.js). Elsewhere the link just downloads the file.
 
-  $$('[data-send]').forEach((a) => a.addEventListener('click', () => {
-    if (navigator.usb) {
-      window.open('https://nspireconnect.ti.com/', '_blank', 'noopener');
+  const CONNECT = 'https://nspireconnect.ti.com/';
+  const SEND_ERRORS = {
+    cancelled: ['没有选到计算器。确认数据线连好、计算器开着，再点一次“发送到计算器”。',
+      'No calculator was chosen. Check the cable and that the calculator is on, then press “Send to calculator” again.'],
+    busy: ['打不开计算器的连接，可能被别的程序占用了。关掉 TI-Nspire 软件和 CX II Connect 网页，拔下数据线再插上，然后再试。',
+      'Could not open the calculator; another program may be using it. Close TI-Nspire software and any CX II Connect tab, unplug and replug the cable, then try again.'],
+    refused: ['计算器没有接收这个文件。如果计算器上正打开着同名文件，先关掉它，再试一次。',
+      'The calculator did not take the file. If a file with this name is open on it, close it and try again.'],
+    model: ['这个按钮只支持 TI-Nspire CX II 系列。其他型号请用下面第 2 步里的 Student Software。',
+      'This button works with the TI-Nspire CX II family only. For other models use Student Software (step 2 below).'],
+    fetch: ['文件没下载下来，请检查网络后再试。', 'The file did not download. Check the network and try again.'],
+    other: ['计算器没有回应。拔下数据线再插上，确认计算器开着，然后再试。',
+      'The calculator stopped answering. Unplug and replug the cable, make sure it is on, then try again.'],
+  };
+
+  function saveFile(url, name) {
+    const a = el('a', { href: url, download: name });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  async function sendToCalc(link) {
+    const card = link.closest('.dl-card');
+    const status = $('[data-send-status]', card);
+    const name = link.getAttribute('download');
+    const url = link.getAttribute('href');
+    const show = (cls, html) => {
+      status.hidden = false;
+      status.className = 'send-status' + (cls ? ' ' + cls : '');
+      status.innerHTML = html;
+    };
+    link.setAttribute('aria-disabled', 'true');
+    // start the download now; the calculator picker needs the click right away
+    const file = fetch(url).then((r) => {
+      if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { code: 'fetch' });
+      return r.arrayBuffer();
+    });
+    file.catch(() => {});
+    try {
+      show('', both('正在找计算器…', 'Looking for the calculator…'));
+      const device = await window.NspireUSB.pickDevice();
+      show('', both('正在连接计算器…', 'Connecting to the calculator…'));
+      let bytes;
+      try {
+        bytes = new Uint8Array(await file);
+      } catch (e) {
+        throw Object.assign(e, { code: 'fetch' });
+      }
+      let shown = -1;
+      await window.NspireUSB.sendFile(device, '/' + name, bytes, {
+        onProgress: (done, total) => {
+          const pct = Math.floor((100 * done) / total);
+          if (pct === shown) return;
+          shown = pct;
+          show('', both(`正在发送… ${pct}%`, `Sending… ${pct}%`));
+        },
+      });
+      show('ok', both(`✓ 已发送！在计算器上 home › My Documents 打开 ${name}。`,
+        `✓ Sent! On the calculator, open ${name} from home › My Documents.`));
+    } catch (e) {
+      console.warn('send to calculator:', e);
+      const [zh, en] = SEND_ERRORS[e && e.code] || SEND_ERRORS.other;
+      const detail = e && e.code !== 'cancelled' && e.message
+        ? `<small>${both('技术信息', 'Details')}: ${e.message.replace(/[<>&]/g, '')}</small>` : '';
+      show('err', both(zh, en) + ` <a href="${CONNECT}" target="_blank" rel="noopener" data-connect>` +
+        both('还是不行？用 TI 的 CX II Connect 发送 ↗', 'Still stuck? Send with TI\'s CX II Connect ↗') + '</a>' + detail);
+      const fallback = $('[data-connect]', status);
+      fallback.addEventListener('click', () => saveFile(url, name));
+    } finally {
+      link.removeAttribute('aria-disabled');
+    }
+  }
+
+  $$('[data-send]').forEach((a) => a.addEventListener('click', (ev) => {
+    if (window.NspireUSB && window.NspireUSB.supported) {
+      ev.preventDefault();
+      // one send at a time: both buttons talk to the same calculator
+      if (!$('[data-send][aria-disabled="true"]')) sendToCalc(a);
     } else {
+      // no WebUSB: the link downloads the file; say how to send it in one click
       const note = $('[data-send-note]');
       if (note) note.hidden = false;
     }

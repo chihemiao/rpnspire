@@ -7,7 +7,8 @@ database.
 The site has five parts:
 
 - **Downloads:** `vce_zh.tns` (Chinese + English) and `vce.tns` (English
-  only), with the version, the changelog and how to update.
+  only), with the version, the changelog and how to update. "Send to
+  calculator" puts a file straight on a connected CX II (see below).
 - **Highlights:** four worked examples (function graph, areas/volumes of
   revolution, kinematics, SUVAT). Each one shows two ways side by side:
   - the commands you would type into a TI-Nspire Calculator page;
@@ -48,12 +49,42 @@ If you change a solver, run that test. When a CAS string the solver sends
 changes, update `recorded.lua`. `assets/timath.js` draws the
 Calculator-page entries as 2D maths.
 
+## Sending to the calculator
+
+`site/public/assets/nspire-usb.js` sends a `.tns` to a TI-Nspire CX II over
+WebUSB, so it needs Chrome or Edge on a computer. The first press shows the
+browser's device picker; after that the browser remembers the calculator.
+Other browsers just download the file, and the page tells them how to send it
+in one click.
+
+The CX II wraps NavNet packets in "NavNet SE" messages. The code follows
+[libnspire](https://github.com/Vogtinator/libnspire) (GPLv3, the library
+behind n-link). TILP's libticalcs uses the same NavNet layout and checksum.
+The steps are:
+
+1. Answer the calculator's address and time requests, acking every message
+   that asks for an ack.
+2. Assign the address.
+3. Open the file service `0x4060`.
+4. Send `03 01`, the path, and the size.
+5. Send the data in 1439-byte chunks, each starting with `05`.
+6. Read the `FF 00` status.
+7. Close the service.
+
+The file goes to My Documents as `/vce_zh.tns` or `/vce.tns`.
+
+`site/test/usb.test.mjs` runs the sender against a simulated calculator that
+checks every message: checksums, acks, addresses, the file bytes, split and
+merged USB reads, damaged messages and the error paths. The simulation follows
+the same descriptions, so only a real handheld proves it works. When a send
+fails, the page shows the technical message and a link to TI's CX II Connect.
+
 ## Build and test locally
 
 ```sh
 npm ci && npm ci --prefix site
 LUA=lua5.4 npm run build:site   # vce.tns, vce_zh.tns, then site/dist
-npm run test:site               # live-screen tutorials + Worker (in-memory SQLite)
+npm run test:site               # live-screen tutorials, Worker (in-memory SQLite), USB sender
 cd site && npx wrangler dev     # http://localhost:8787 with a local D1
 ```
 

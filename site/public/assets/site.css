@@ -194,7 +194,12 @@ section.band { background: var(--band); }
 .dl-btn { flex-direction: column; gap: 0; padding: 12px 20px; }
 .dl-btn small { font-weight: 500; opacity: .85; font-size: .82rem; }
 .dl-send { margin-top: 10px; }
+.dl-send[aria-disabled="true"] { opacity: .6; pointer-events: none; }
 .send-note { color: var(--warn); }
+.dl-card .send-status { margin: 10px 0 0; font-size: .95rem; color: var(--ink); flex: 0; }
+.dl-card .send-status.ok { color: var(--ok); font-weight: 600; }
+.dl-card .send-status.err { color: var(--err); }
+.dl-card .send-status small { display: block; color: var(--muted); font-weight: 400; margin-top: 4px; overflow-wrap: anywhere; }
 .send-ways { margin: 8px 0 0; padding-left: 1.1em; list-style: disc; }
 .big-steps .send-ways li { counter-increment: none; padding-left: 0; margin-bottom: 6px; }
 .big-steps .send-ways li::before { content: none; }
