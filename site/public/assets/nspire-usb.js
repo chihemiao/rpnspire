@@ -159,12 +159,45 @@
     return e;
   }
 
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const why = (e) => (e && e.name && e.name !== 'Error' ? e.name + ': ' : '') + (e && e.message ? e.message : String(e));
+
+  // The interface with a bulk IN and a bulk OUT endpoint, vendor class first;
+  // endpoints 1 when there are several (libnspire uses 0x81 and 0x01)
+  function findInterface(cfg) {
+    let best = null;
+    for (const itf of (cfg && cfg.interfaces) || []) {
+      const alt = itf.alternate || (itf.alternates && itf.alternates[0]);
+      if (!alt) continue;
+      const bulk = (dir) => {
+        const eps = alt.endpoints.filter((x) => x.direction === dir && x.type === 'bulk');
+        return (eps.find((x) => x.endpointNumber === 1) || eps[0] || {}).endpointNumber;
+      };
+      const found = { number: itf.interfaceNumber, in: bulk('in'), out: bulk('out'), vendor: alt.interfaceClass === 0xff };
+      if (found.in === undefined || found.out === undefined) continue;
+      if (!best || (found.vendor && !best.vendor)) best = found;
+    }
+    return best;
+  }
+
+  // What the browser sees, for the error message
+  function describe(d) {
+    const cfg = d.configuration;
+    if (!cfg) return 'no configuration';
+    return 'config ' + cfg.configurationValue + '; ' + cfg.interfaces.map((itf) => {
+      const alt = itf.alternate || {};
+      const eps = (alt.endpoints || []).map((x) => x.direction + x.endpointNumber + (x.type === 'bulk' ? '' : x.type)).join(' ');
+      return 'if' + itf.interfaceNumber + ' class ' + (alt.interfaceClass || 0).toString(16) + (itf.claimed ? ' claimed' : '') + ' ' + eps;
+    }).join('; ');
+  }
+
   // One connection to one calculator -----------------------------------------
 
   class Link {
     constructor(device, opts) {
       this.dev = device;
       this.timeout = opts.timeout || 10000;
+      this.quiet = Math.min(opts.quiet || 3000, this.timeout);
       this.now = opts.now || (() => Date.now());
       this.buf = new Uint8Array(0);
       this.inbox = [];   // NNSE messages not yet looked at
@@ -175,33 +208,42 @@
       this.ready = false;
     }
 
+    // No USB reset here: on macOS it re-enumerates the calculator and the
+    // browser loses it. Another program may let go a moment later, so the
+    // open and the claim are tried a few times.
     async open() {
       const d = this.dev;
-      try {
-        if (!d.opened) await d.open();
-        if (!d.configuration || d.configuration.configurationValue !== 1) await d.selectConfiguration(1);
-      } catch (e) {
-        throw fail('busy', e && e.message);
-      }
-      // A reset makes the calculator start over with the handshake below
-      try { await d.reset(); } catch (e) { /* not everywhere; carry on */ }
-      try {
-        if (!d.opened) await d.open();
-        await d.claimInterface(0);
-      } catch (e) {
-        throw fail('busy', e && e.message);
-      }
-      const alt = d.configuration.interfaces[0].alternate;
-      const ep = (dir) => alt.endpoints.find((x) => x.direction === dir && x.type === 'bulk');
-      if (!ep('in') || !ep('out')) throw fail('device', 'no bulk endpoints');
-      this.epIn = ep('in').endpointNumber;
-      this.epOut = ep('out').endpointNumber;
+      const step = async (name, fn) => {
+        for (let i = 0; ; i++) {
+          try {
+            return await fn();
+          } catch (e) {
+            if (i >= 2) throw fail('busy', name + ': ' + why(e) + ' [' + describe(d) + ']');
+            await wait(400);
+          }
+        }
+      };
+      // a connection this page left open would block the claim
+      if (d.opened) { try { await d.close(); } catch (e) { /* start afresh */ } }
+      await step('open', () => d.open());
+      if (!d.configuration) await step('selectConfiguration(1)', () => d.selectConfiguration(1));
+      const itf = findInterface(d.configuration);
+      if (!itf) throw fail('device', 'no bulk interface [' + describe(d) + ']');
+      await step('claimInterface(' + itf.number + ')', () => d.claimInterface(itf.number));
+      this.iface = itf.number;
+      this.epIn = itf.in;
+      this.epOut = itf.out;
+      // Clear both pipes so both ends start from DATA0 with nothing stalled
+      try { await d.clearHalt('in', this.epIn); } catch (e) { /* not stalled */ }
+      try { await d.clearHalt('out', this.epOut); } catch (e) { /* not stalled */ }
       this.read();
     }
 
     async close() {
       this.closed = true;
-      try { await this.dev.releaseInterface(0); } catch (e) { /* already gone */ }
+      if (this.iface !== undefined) {
+        try { await this.dev.releaseInterface(this.iface); } catch (e) { /* already gone */ }
+      }
       try { await this.dev.close(); } catch (e) { /* already gone */ }
     }
 
@@ -212,7 +254,7 @@
         try {
           r = await this.dev.transferIn(this.epIn, MAX);
         } catch (e) {
-          if (!this.closed) this.stop(fail('lost', e && e.message));
+          if (!this.closed) this.stop(fail('lost', 'transferIn: ' + why(e)));
           return;
         }
         if (r.status === 'stall') {
@@ -263,7 +305,7 @@
       try {
         r = await this.dev.transferOut(this.epOut, m);
       } catch (e) {
-        throw fail('lost', e && e.message);
+        throw fail('lost', 'transferOut: ' + why(e));
       }
       if (r.status !== 'ok' || r.bytesWritten !== m.length) throw fail('lost', 'short write');
     }
@@ -300,14 +342,17 @@
       }
     }
 
-    // Wait for the calculator's address and time requests
+    // Wait for the calculator's address and time requests. One that has
+    // said nothing for `quiet` ms may have done this already: go on.
     async handshake() {
       const end = this.now() + this.timeout;
+      let heard = false;
       while (!this.ready) {
-        const left = end - this.now();
+        const left = Math.min(end - this.now(), heard ? Infinity : this.quiet);
         if (left <= 0) break;
         const m = await this.next(left);
         if (!m) break;
+        heard = true;
         await this.handle(m);
       }
       // A calculator that skipped the handshake may still listen: send() finds out
@@ -357,8 +402,8 @@
     const progress = opts.onProgress || (() => {});
     if (device.productId !== PID_CX2) throw fail('model', 'not a CX II');
     const link = new Link(device, opts);
-    await link.open();
     try {
+      await link.open();
       await link.handshake();
       // Address assignment (init.c), then the file service (services/file.c)
       await link.send({ srcSid: 0x4003, dstSid: 0x4003, data: [0x64, 0x01, 0xff, 0x00] });
@@ -400,7 +445,7 @@
       return await navigator.usb.requestDevice({ filters });
     } catch (e) {
       if (e && e.name === 'NotFoundError') throw fail('cancelled');
-      throw fail('busy', e && e.message);
+      throw fail('busy', 'requestDevice: ' + why(e));
     }
   }
 

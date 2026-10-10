@@ -62,8 +62,14 @@ export class FakeCalc {
     this.vendorId = 0x0451;
     this.productId = opt.productId ?? 0xe022;
     this.productName = 'TI-Nspire CX II CAS';
-    this.opened = false;
-    this.configuration = null;
+    // opt.heldOpen: this page left it open and claimed; opt.unconfigured: no
+    // active configuration yet; opt.iface1: a decoy interface 0 before the
+    // NavNet one; opt.busy / opt.busyTimes: the claim fails always / n times
+    this.opened = !!opt.heldOpen;
+    this.claimed = !!opt.heldOpen;
+    this.configuration = opt.unconfigured ? null : FakeCalc.config(opt);
+    this.claims = 0;
+    this.halts = [];
     this.queue = [];      // bytes the calculator will send
     this.pending = null;  // a transferIn waiting for bytes
     this.seq = 0x1000;
@@ -76,26 +82,43 @@ export class FakeCalc {
     this.addressed = false;
   }
 
-  async open() { this.opened = true; }
+  static config(opt) {
+    const navnet = { interfaceClass: 0xff, endpoints: [
+      { endpointNumber: 1, direction: 'in', type: 'bulk', packetSize: 512 },
+      { endpointNumber: 1, direction: 'out', type: 'bulk', packetSize: 512 },
+      { endpointNumber: 2, direction: 'out', type: 'bulk', packetSize: 512 },
+    ] };
+    const decoy = { interfaceClass: 0x03, endpoints: [{ endpointNumber: 3, direction: 'in', type: 'interrupt', packetSize: 8 }] };
+    const interfaces = opt.iface1
+      ? [{ interfaceNumber: 0, alternate: decoy }, { interfaceNumber: 1, alternate: navnet }]
+      : [{ interfaceNumber: 0, alternate: navnet }];
+    return { configurationValue: 1, interfaces };
+  }
+
+  async open() {
+    assert.ok(!this.opened, 'opened twice without closing');
+    this.opened = true;
+  }
   async close() {
     this.opened = false;
     this.claimed = false;
     if (this.pending) { this.pending.reject(new Error('device closed')); this.pending = null; }
   }
   async selectConfiguration(v) {
+    assert.ok(this.opened);
     assert.equal(v, 1);
-    this.configuration = {
-      configurationValue: 1,
-      interfaces: [{ interfaceNumber: 0, alternate: { endpoints: [
-        { endpointNumber: 1, direction: 'in', type: 'bulk', packetSize: 512 },
-        { endpointNumber: 1, direction: 'out', type: 'bulk', packetSize: 512 },
-      ] } }],
-    };
+    this.configuration = FakeCalc.config(this.opt);
   }
+  // a reset re-enumerates on macOS and the browser loses the device
   async reset() { this.wasReset = true; }
   async claimInterface(n) {
-    assert.equal(n, 0);
-    if (this.opt.busy) throw new Error('Unable to claim interface.');
+    assert.ok(this.opened, 'open before claiming');
+    assert.equal(n, this.opt.iface1 ? 1 : 0, 'the NavNet interface');
+    this.claims++;
+    if (this.opt.busy || this.claims <= (this.opt.busyTimes || 0)) {
+      throw Object.assign(new Error('Unable to claim interface.'), { name: 'NetworkError' });
+    }
+    assert.ok(!this.claimed, 'claimed twice');
     this.claimed = true;
     if (this.opt.noHandshake) { this.handshaken = true; return; }
     const id = new TextEncoder().encode('            TI-Nspire CX II CAS'.padEnd(64, '\0'));
@@ -108,8 +131,15 @@ export class FakeCalc {
     }
     this.say({ service: 0x02, reqAck: 1, data: [0x00] });
   }
-  async releaseInterface() { this.claimed = false; this.released = true; }
-  async clearHalt() {}
+  async releaseInterface(n) {
+    assert.equal(n, this.opt.iface1 ? 1 : 0);
+    this.claimed = false;
+    this.released = true;
+  }
+  async clearHalt(dir, ep) {
+    assert.ok(this.claimed);
+    this.halts.push(dir + ep);
+  }
 
   say(f) {
     const m = nnse({ ...f, seqno: this.seq++ });

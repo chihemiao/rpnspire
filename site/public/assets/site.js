@@ -310,8 +310,8 @@
   const SEND_ERRORS = {
     cancelled: ['没有选到计算器。确认数据线连好、计算器开着，再点一次“发送到计算器”。',
       'No calculator was chosen. Check the cable and that the calculator is on, then press “Send to calculator” again.'],
-    busy: ['打不开计算器的连接，可能被别的程序占用了。关掉 TI-Nspire 软件和 CX II Connect 网页，拔下数据线再插上，然后再试。',
-      'Could not open the calculator; another program may be using it. Close TI-Nspire software and any CX II Connect tab, unplug and replug the cable, then try again.'],
+    busy: ['计算器正被别的程序或网页占用。最常见的是另一个标签页里开着 CX II Connect，或者开着 TI-Nspire 软件：把它们关掉（CX II Connect 要关掉整个标签页），再点一次。还不行就拔下数据线重新插上，刷新本页再试。',
+      'Something else is using the calculator, most often CX II Connect in another tab or TI-Nspire software. Close them (close the whole CX II Connect tab) and press again. If it still fails, replug the cable, reload this page and try again.'],
     refused: ['计算器没有接收这个文件。如果计算器上正打开着同名文件，先关掉它，再试一次。',
       'The calculator did not take the file. If a file with this name is open on it, close it and try again.'],
     model: ['这个按钮只支持 TI-Nspire CX II 系列。其他型号请用下面第 2 步里的 Student Software。',

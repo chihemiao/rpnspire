@@ -57,6 +57,11 @@ browser's device picker; after that the browser remembers the calculator.
 Other browsers just download the file, and the page tells them how to send it
 in one click.
 
+Opening the calculator does not reset it: on macOS a USB reset makes the
+device disconnect and reconnect, and the browser loses it. If another tab or
+program holds the calculator, the open and the claim are retried a few times.
+A failed send always closes the connection.
+
 The CX II wraps NavNet packets in "NavNet SE" messages. The code follows
 [libnspire](https://github.com/Vogtinator/libnspire) (GPLv3, the library
 behind n-link). TILP's libticalcs uses the same NavNet layout and checksum.
