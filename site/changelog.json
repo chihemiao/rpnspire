@@ -1,5 +1,17 @@
 [
   {
+    "version": "2.2",
+    "date": "2026-10-10",
+    "en": [
+      "New topic (press 0 on the home screen): the angle between two vectors, or angle ABC from three points. Choose the angle between vectors (0 to 180°) or the acute angle between lines, in degrees or radians. With a letter such as m in a vector, type the angle to find m.",
+      "Kinematics: Find can be one function, such as v(x), t(x) or x(v). It is worked out from the others, with the working."
+    ],
+    "zh": [
+      "新题型（首页按 0）：两个向量的夹角，或由三个点求 ∠ABC。可选向量夹角（0 到 180°）或直线夹角（锐角），角度或弧度都行。向量里有字母（如 m）时，填入夹角就能求出 m。",
+      "运动学：“求”可以选一个函数，比如 v(x)、t(x) 或 x(v)，由其他关系推出来并写出步骤。"
+    ]
+  },
+  {
     "version": "2.1",
     "date": "2026-10-08",
     "en": [

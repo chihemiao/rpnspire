@@ -8,11 +8,11 @@ The toolkit ships three ways:
 - `vce_zh.tns`: the version with Chinese (中英双语). The interface, field labels and hints, notes, menus, help and the name of every result (for example *variance 方差*, *Type II error 第二类错误*) appear in Chinese and English. The working steps stay in English, the language of the VCE exam. **Settings › Language** switches this document between Chinese + English and English only; the choice is saved with the document.
 - `rpn.tns`: rpnspire with the toolkit built in, in English like `vce.tns`. Press <kbd>.</kbd> <kbd>a</kbd> and choose **VCE Maths toolkit**. With **Send to RPN stack** in the context menu you can push a result onto the rpnspire stack.
 
-> Status: the solvers are tested on a desktop against a numeric CAS mock (`testcas.lua`), and the bundled document is smoke-tested in a TI-like Lua 5.1 sandbox. The real TI CAS (exact output, syntax) still has to be checked on a handheld or in the TI-Nspire CX CAS software. Run **Help › Self-test** once on your calculator: it solves 57 known problems and reports any that fail.
+> Status: the solvers are tested on a desktop against a numeric CAS mock (`testcas.lua`), and the bundled document is smoke-tested in a TI-like Lua 5.1 sandbox. The real TI CAS (exact output, syntax) still has to be checked on a handheld or in the TI-Nspire CX CAS software. Run **Help › Self-test** once on your calculator: it solves 64 known problems and reports any that fail.
 
 ## Getting started: 3 steps
 
-1. **Pick a topic** on the home screen. Press its number (1–9) or move to it and press enter.
+1. **Pick a topic** on the home screen. Press its number (1–9, or 0 for the tenth) or move to it and press enter.
 2. **Type what the question gives** into the boxes. Leave the unknowns empty.
 3. **Read the answers.** They appear at once in the green **Answers** area. The working is underneath.
 
@@ -22,7 +22,7 @@ Not sure what to type? An empty problem has a **Try an example** button that fil
 
 The layout assumes that any student may have dyslexia or ADHD:
 
-- **Few choices per screen.** The home screen has nine topics with one short line each. All of Probability is a single topic; you choose the kind of question from a numbered list.
+- **Few choices per screen.** The home screen has ten topics with one short line each. All of Probability is a single topic; you choose the kind of question from a numbered list.
 - **One thing at a time.** In Probability, step 1 is to choose the kind of question; only its boxes are then shown. In *Find unknown constants*, the number of condition boxes matches the number of unknowns.
 - **Always clear where you are.** The selected row has a blue bar on its left. Input boxes are outlined so you can see where to type, and the hint line at the bottom names the next key to press.
 - **Answers stand out.** Answers sit on a green background, directly under the inputs; the working follows below them. After **Try an example**, the screen jumps to the answers.
@@ -50,6 +50,7 @@ Both subjects have a technology-active Exam 2, where this toolkit is allowed.
 | 7 | Constant acceleration (SUVAT) | SM | |
 | 8 | Kinematics | SM | |
 | 9 | Probability & statistics | MM SM | see the next table |
+| 0 | Angle between vectors | SM | press 0 for the tenth topic |
 
 Kinds of question under Probability & statistics:
 
@@ -76,7 +77,8 @@ Kinds of question under Probability & statistics:
 | Area, volume, arc length, surface area | y = f(x), x = g(y) or parametric x(t), y(t); optional second curve; limits as x values or as **y values** (choose *Limits are: y values*, or type `y=1` and `y=4`); limits and curves may contain a letter such as `a` or `k`; axis of rotation; with a letter, **given** `V=16pi`, `A=4` or `a=2` | <ul><li>area (split where the curve crosses the axis or the curves cross) and the signed integral</li><li>volume by discs/washers, or by the inverse function and shells for the other axis</li><li>arc length and surface area</li><li>a shaded graph</li><li>with y-value limits for y = f(x): the region beside the y-axis, with x written in terms of y (for example V = π∫ x² dy)</li><li>with a letter: area and volume in terms of it (assumed positive), or its value from a given volume or area, followed by every other result</li></ul> |
 | DE models | model: growth/decay, Newton's cooling, logistic, mixing (tank), general dy/dx, related rates; initial value, a second data point or half-life/doubling time; "find" (`t=10`, `N=200`) | <ul><li>the DE and its solution, k, values and times</li><li>doubling time or half-life, and the limiting value</li><li>logistic point of fastest growth and maximum rate</li><li>mixing amount and concentration (variable volume too)</li><li>deSolve result, Euler table and a slope field</li><li>related-rates chain rule</li><li>a graph</li></ul> |
 | SUVAT | any three of s, u, v, a, t | the other two (both roots when there are two, negative t rejected) |
-| Kinematics | a(t), a(v), a(x), v(t), v(x), v²(x) or x(t), which may contain an unknown constant k; known state t₀, x₀, v₀ (optional); conditions in "also" (`x(2)=5`, `a=-3.5 when v=7`, `a(7)=-3.5`, several separated by `;`); **Find** (everything, x, v, a or t) **when** (`t=3`, `v=0`, `x=5`, `a=0`); time interval | <ul><li>the derived relations (v(t), x(t), v(x), t(v), x(v), ...) with their domains</li><li>unknown constants and terminal velocity</li><li>values at the requested instant, or only the quantity chosen in **Find**</li><li>a "Not enough conditions" note naming the missing value (for example x₀) when something cannot be found</li><li>displacement and distance (split at turning points)</li><li>average velocity and speed</li><li>without an initial state, the general solution with +c</li></ul> |
+| Kinematics | a(t), a(v), a(x), v(t), v(x), v²(x) or x(t), which may contain an unknown constant k; known state t₀, x₀, v₀ (optional); conditions in "also" (`x(2)=5`, `a=-3.5 when v=7`, `a(7)=-3.5`, several separated by `;`); **Find** (everything, x, v, a or t, or one function: x(t), v(t), a(t), v(x), v²(x), a(x), t(x), x(v), t(v), a(v)) **when** (`t=3`, `v=0`, `x=5`, `a=0`); time interval | <ul><li>the derived relations (v(t), x(t), v(x), t(v), x(v), ...) with their domains</li><li>unknown constants and terminal velocity</li><li>values at the requested instant, or only the quantity chosen in **Find**</li><li>a function chosen in **Find** (such as v(x) from a(t)), worked out by differentiating, solving for the other variable (the branch through the known state) or substituting, e.g. v(x) = v(t(x))</li><li>a "Not enough conditions" note naming the missing value (for example x₀) when something cannot be found</li><li>displacement and distance (split at turning points)</li><li>average velocity and speed</li><li>without an initial state, the general solution with +c</li></ul> |
+| Angle between vectors | **Use** two vectors a, b or three points A, B, C (angle ABC, vertex B); vectors as `2i-j+3k`, `(2,-1,3)`, `[2,-1,3]` or `<2,-1,3>` (2D or 3D); **Angle**: 0 to 180° (between vectors) or acute (between lines, 180° − θ when obtuse); **Unit**: degrees or radians; with one letter such as `m` in a vector, **given θ** (`60`, `pi/3`) | <ul><li>BA = A − B and BC = C − B for three points</li><li>a·b, \|a\|, \|b\| and cos θ with working</li><li>θ in the chosen unit (both units in the working); perpendicular or parallel is said</li><li>the acute angle 180° − θ when asked for and θ is obtuse</li><li>with a letter and a given angle: (a·b)² = \|a\|²\|b\|² cos²θ (a·b = 0 for 90°), solved, and each value checked; values that give 180° − θ are rejected unless the acute angle was chosen</li><li>without a given angle: the answers in terms of the letter</li></ul> |
 | Normal distribution | μ, σ or σ², event (`45<X<55`, `X>k`, `X>60\|X>50`), Pr, area | probability, inverse normal (k), unknown μ or σ, z-scores, x for a given area |
 | Normal: find μ and σ | two events with probabilities | μ, σ by solving the standardised equations simultaneously |
 | Binomial | any two of n, p, E(X), Var(X), SD(X); event; Pr (`>=0.95`) | exact probabilities (binomCdf/binomPdf working), conditional probabilities, smallest n, p from a probability |
@@ -143,7 +145,7 @@ Exact values are shown where the CAS finds them. Points it finds only numericall
 
 | Key | Action |
 |-----|--------|
-| digits on the home screen | open topic 1–9 |
+| digits on the home screen | open topic 1–9 (0: the tenth) |
 | digits in a list of kinds | choose that kind (Probability step 1) |
 | up / down | move between rows |
 | typing | edits the selected field (a preview shows it in 2D, like the CAS) |

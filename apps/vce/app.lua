@@ -462,11 +462,14 @@ end
 -- Solving is cached per problem. The key holds every input that changes the
 -- maths; inputs a solver lists in `view_fields` (graph window, show/hide
 -- options) only change the picture and are applied by `s.view` to a copy, so
--- moving through fields or toggling an option does not solve again.
+-- moving through fields or toggling an option does not solve again. A
+-- view field may be a function of the value (true: view only).
 local function solve_key(s, I)
    local parts = { s.id, tostring(A.settings.dp) }
    for _, f in ipairs(s.fields) do
-      if not (s.view_fields and s.view_fields[f.id]) then
+      local view = s.view_fields and s.view_fields[f.id]
+      if type(view) == 'function' then view = view(I[f.id]) end
+      if not view then
          table.insert(parts, f.id .. '=' .. tostring(I[f.id] or ''))
       end
    end

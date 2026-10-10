@@ -104,7 +104,7 @@ function topicCard(t, i) {
   const members = (t.members || []).map((m) =>
     `<li>${m.course.map(badge).join('')} ${both(esc(m.zh.title || m.title), esc(m.title))}</li>`).join('');
   return `<li class="topic" id="topic-${esc(t.id)}">
-  <div class="topic-head"><span class="topic-num" aria-hidden="true">${i + 1}</span>
+  <div class="topic-head"><span class="topic-num" aria-hidden="true">${(i + 1) % 10}</span>
   <h3>${both(esc(t.zh.short || t.short), esc(t.short))}</h3><span class="badges">${t.course.map(badge).join('')}</span></div>
   <p class="topic-blurb">${both(esc(t.zh.blurb || t.blurb), esc(t.blurb))}</p>
   ${members ? `<ul class="members">${members}</ul>` : ''}

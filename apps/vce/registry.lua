@@ -1,6 +1,7 @@
 -- Registry of VCE solvers.
 --   t.list  every solver (tests, self-test, saved problems)
---   t.home  the home screen entries, in order (Probability is one entry)
+--   t.home  the home screen entries, in order (Probability is one entry;
+--           keys 1-9 then 0, so new topics go at the end)
 -- course: 'MM' Mathematical Methods, 'SM' Specialist Mathematics (both are
 -- Units 3 & 4 with a technology-active Exam 2).
 local group = require 'apps.vce.solvers.group'
@@ -16,6 +17,7 @@ local revolution = require 'apps.vce.solvers.revolution'
 local demodels = require 'apps.vce.solvers.demodels'
 local suvat = require 'apps.vce.solvers.suvat'
 local kinematics = require 'apps.vce.solvers.kinematics'
+local vectors = require 'apps.vce.solvers.vectors'
 local normal = require 'apps.vce.solvers.normal'
 local normal2 = require 'apps.vce.solvers.normal2'
 local binomial = require 'apps.vce.solvers.binomial'
@@ -28,7 +30,7 @@ local hyptest = require 'apps.vce.solvers.hyptest'
 
 local COURSE = {
    graph = 'MM SM', params = 'MM SM', transform = 'MM', simul = 'MM',
-   revolution = 'MM SM', demodels = 'SM', suvat = 'SM', kinematics = 'SM',
+   revolution = 'MM SM', demodels = 'SM', suvat = 'SM', kinematics = 'SM', vectors = 'SM',
    normal = 'MM', normal2 = 'MM', binomial = 'MM', discrete = 'MM', pdf = 'MM', proportion = 'MM',
    sampling = 'SM', lincomb = 'SM', hyptest = 'SM',
 }
@@ -43,6 +45,7 @@ local BLURB = {
    demodels = 'growth, cooling, logistic, mixing, Euler',
    suvat = 'any 3 of s, u, v, a, t',
    kinematics = 'a(t), a(v), a(x), v(x), x(t) with working',
+   vectors = 'angle from vectors or 3 points; find m',
 }
 
 -- Home groups
@@ -51,7 +54,7 @@ graph.group, params.group, transform.group, simul.group = 'Functions', 'Function
 t.list = {
    graph, params, transform, simul,
    revolution, demodels,
-   suvat, kinematics,
+   suvat, kinematics, vectors,
    normal, normal2, binomial, discrete, pdf, proportion, sampling, lincomb, hyptest,
 }
 
@@ -77,6 +80,7 @@ t.home = {
    revolution, demodels,
    suvat, kinematics,
    t.probability,
+   vectors,
 }
 
 t.by_id = {}

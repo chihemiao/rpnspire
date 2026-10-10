@@ -14,6 +14,19 @@ local TYPES = {
    { 'x(t)', 'x = f(t)' },
 }
 
+-- Functions that Find can show (worked out when the steps do not give them)
+local FUNCTIONS = {
+   { 'xt', 'x(t)' }, { 'vt', 'v(t)' }, { 'at', 'a(t)' }, { 'vx', 'v(x)' }, { 'v2x', 'v' .. U.SQ .. '(x)' },
+   { 'ax', 'a(x)' }, { 'tx', 't(x)' }, { 'xv', 'x(v)' }, { 'tv', 't(v)' }, { 'av', 'a(v)' },
+}
+local FN = {}
+local WANT = { { 'all', 'everything' }, { 'x', 'x  position' }, { 'v', 'v  velocity' },
+               { 'a', 'a  acceleration' }, { 't', 't  time' } }
+for _, f in ipairs(FUNCTIONS) do
+   FN[f[1]] = f[2]
+   table.insert(WANT, f)
+end
+
 local S = {
    id = 'kinematics',
    title = 'Kinematics: a(t), a(v), a(x), v(t), v(x), x(t)',
@@ -33,11 +46,10 @@ local S = {
       { id = 'c2', label = 'also', hint = 'x(2)=5   v=2,x=1   a=-3.5,v=7 (finds k)' },
       { id = 't1', label = 'from t=', hint = 'displacement / distance' },
       { id = 't2', label = 'to t=', hint = '' },
-      -- what to work out: everything, or one quantity (x, v, a or t); last, so
-      -- enter on 'when' goes straight to the answer
-      { id = 'want', label = 'Find', kind = 'choice', options = {
-           { 'all', 'everything' }, { 'x', 'x  position' }, { 'v', 'v  velocity' },
-           { 'a', 'a  acceleration' }, { 't', 't  time' } } },
+      -- what to work out: everything, one quantity (x, v, a or t) or one
+      -- function such as v(x); last, so enter on 'when' goes straight to the
+      -- answer
+      { id = 'want', label = 'Find', kind = 'choice', options = WANT },
       { id = 'find', label = 'when', hint = 't=3   v=0   x=5   a=0' },
    },
    example = { type = 'a(t)', f = '6t', t0 = '0', x0 = '1', v0 = '2', find = 't=2' },
@@ -614,6 +626,84 @@ function S.solve(I, R)
       end
    end
 
+   -- Function chosen in Find ---------------------------------------------------
+   -- q in terms of p (q: x, v, a or t; p: t, x or v) from the relations
+   -- found above: differentiate, solve one for the other variable, or
+   -- substitute one into another, e.g. v(x) = v(t(x)) from v(t) and x(t).
+   -- Returns the expression, its working lines and the result keys it uses.
+   local VARS = { t = T, x = X, v = V }
+   local function relation(q, p, depth)
+      local key = q .. p
+      if K[key] then return K[key], {}, { key } end
+      if depth == 0 then return nil end
+      local function sub(a, b) return relation(a, b, depth - 1) end
+      if key == 'vt' or key == 'at' then
+         local e, lines, deps = sub(key == 'vt' and 'x' or 'v', 't')
+         if e then
+            local d = U.simp('derivative(' .. e .. ',' .. T .. ')')
+            table.insert(lines, (key == 'vt' and 'v = dx/dt = ' or 'a = dv/dt = ') .. M(d))
+            return d, lines, deps
+         end
+      elseif key == 'ax' then
+         local e, lines, deps = sub('v', 'x')
+         if e then
+            local d = U.simp(U.par(e) .. '*derivative(' .. e .. ',' .. X .. ')')
+            table.insert(lines, 'a = v' .. '\194\183' .. 'dv/dx = ' .. M(d))
+            return d, lines, deps
+         end
+      end
+      if VARS[q] then
+         local e, lines, deps = sub(p, q)
+         if e then
+            -- the branch through a known state (x(t): the one through t = t0)
+            local c = find_cond(p, q)
+            local q0 = not c and ((conds[1] and conds[1][q]) or (q == 't' and '0'))
+            if q0 then c = { [q] = q0, [p] = U.simp(cas.with(e, { { VARS[q], q0 } })) } end
+            local inv = pick(cas.solve(VARS[p] .. '=' .. e, VARS[q]), VARS[p], c and c[p], c and c[q])
+            if inv then
+               table.insert(lines, 'Solve ' .. M(VARS[p] .. '=' .. e) .. ' for ' .. q .. ':  ' .. q .. ' = ' .. M(inv))
+               return inv, lines, deps
+            end
+         end
+      end
+      for _, s in ipairs({ 't', 'x', 'v' }) do
+         if s ~= q and s ~= p then
+            local qs, l1, d1 = sub(q, s)
+            local sp, l2, d2
+            if qs then sp, l2, d2 = sub(s, p) end
+            if sp then
+               local e = U.simp(cas.with(qs, { { VARS[s], sp } }))
+               for _, l in ipairs(l2) do table.insert(l1, l) end
+               for _, d in ipairs(d2) do table.insert(d1, d) end
+               table.insert(l1, 'Substitute ' .. s .. ' = ' .. s .. '(' .. p .. ') into ' .. q .. '(' .. s .. '):  '
+                            .. q .. ' = ' .. M(e))
+               return e, l1, d1
+            end
+         end
+      end
+   end
+
+   local want = I.want
+   if FN[want] and not K[want] then
+      local q, p = want:sub(1, 1), want:sub(-1)
+      local e, lines, deps
+      for depth = 1, 2 do
+         e, lines, deps = relation(q, p, depth)
+         if e then break end
+      end
+      if e then
+         R:tag(want, deps)
+         R:section('Find ' .. FN[want])
+         if want == 'v2x' then
+            e = U.simp(U.par(e) .. '^2')
+            table.insert(lines, 'v' .. U.SQ .. ' = ' .. M(e))
+         end
+         for _, l in ipairs(lines) do R:step(l) end
+         res(want, FN[want], e)
+         R:tag(nil)
+      end
+   end
+
    -- Questions ---------------------------------------------------------------
    -- what is known, for S.view: which quantities are given at a known time
    local kin = { kind = kind, has = {} }
@@ -869,9 +959,10 @@ end
 
 -- What to show -----------------------------------------------------------------
 
--- The Find choice only changes what is shown, so the app applies it to the
--- cached solution without solving again.
-S.view_fields = { want = true }
+-- Choosing a quantity in Find only changes what is shown, so the app applies
+-- it to the cached solution without solving again. A function (v(x)) may
+-- need more working, so choosing one solves again.
+S.view_fields = { want = function(v) return not FN[v] end }
 
 -- Formula results for each quantity (without a 'when' question)
 local FORMULAS = {
@@ -895,6 +986,13 @@ local function not_enough(q, kin)
    if kin.var then text = text .. ' when ' .. kin.var .. ' = ' .. kin.value end
    local m = missing(q, kin)
    return m and (text .. ': ' .. m) or text
+end
+
+-- Function q(p) not found: say which value is missing
+local function not_enough_fn(key, kin)
+   local m = missing(key:sub(1, 1), kin) or missing(key:sub(-1), kin)
+   if not m then return 'Could not find ' .. FN[key] end
+   return 'Not enough conditions to find ' .. FN[key] .. ': ' .. m
 end
 
 -- Add a 'not enough conditions' note in place of the older technical ones
@@ -932,6 +1030,20 @@ function S.view(I, R)
             end
          end
       end
+      return
+   end
+   if FN[want] then
+      -- the function (and its value at the 'when' instant)
+      local keep, found = {}, false
+      for _, r in ipairs(R.results) do
+         local base = (r.key or ''):gsub('%d+$', '')
+         if base == want then found = true end
+         if base == want or base:match('^param_') or (kin.var and base == 'q_' .. want:sub(1, 1)) then
+            table.insert(keep, r)
+         end
+      end
+      R.results = keep
+      if not found then tell(R, not_enough_fn(want, kin)) end
       return
    end
    if kin.var == want then

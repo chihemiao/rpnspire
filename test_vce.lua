@@ -96,6 +96,19 @@ end
 
 local function U_neg(x) return sym.NEGATE .. x end
 
+-- The mock cannot solve symbolically. TI answers for the inverses that the
+-- kinematics Find tests (and self-test cases) need:
+local RECORDED = {
+   ['solve(q9x=q9t^2+2q9t,q9t)'] = 'q9t=' .. sym.NEGATE .. sym.ROOT .. '(q9x+1)-1 or q9t=' .. sym.ROOT .. '(q9x+1)-1',
+}
+local function with_recorded(fn)
+   local orig = cas.backend
+   cas.backend = function(e) return RECORDED[e] or orig(e) end
+   local ok, err = pcall(fn)
+   cas.backend = orig
+   if not ok then error(err, 0) end
+end
+
 local function near(a, b, tol, msg)
    tol = tol or 1e-4
    Test.assert(a ~= nil, (msg or '') .. ': value is nil (expected ' .. tostring(b) .. ')')
@@ -883,6 +896,130 @@ function test.kin_find_choice()
    ui.on_event('escape')
 end
 
+-- Find a function such as v(x): differentiate, invert or substitute. The
+-- mock cannot solve symbolically, so the TI answers for the inverses are
+-- recorded here.
+local function kin_find_function_cases()
+   local function at(R, key, var, val)
+      return cas.n(cas.with(R:get(key), { { var, val } }))
+   end
+   -- x(t) = t^2 + 2t: t(x) through t = 0, then v(x) = v(t(x))
+   local R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'vx' })
+   no_errors(R)
+   Test.assert(#R.results == 1 and R.results[1].key == 'vx', 'only v(x) shown')
+   near(at(R, 'vx', 'q9x', '3'), 4, 1e-6, 'v(3) = 4 (t = 1)')
+   local text = {}
+   for _, s in ipairs(R:steps_for('vx')) do table.insert(text, report.plain(s.text)) end
+   text = table.concat(text, ' | ')
+   Test.assert(text:find('Given x', 1, true) and text:find('v = dx/dt', 1, true), 'working from x(t): ' .. text)
+   Test.assert(text:find('Solve x', 1, true) and text:find('Substitute t = t(x) into v(t)', 1, true), 'invert and substitute: ' .. text)
+   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'tx' })
+   near(at(R, 'tx', 'q9x', '3'), 1, 1e-9, 't(3) = 1, the branch through t = 0')
+   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'v2x' })
+   near(at(R, 'v2x', 'q9x', '3'), 16, 1e-9, 'v squared')
+   R = run('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'ax' })
+   near(at(R, 'ax', 'q9x', '3'), 2, 1e-5, 'a(x) (numeric derivative in the mock)')
+   -- a given function is shown as it is, with the value at the 'when' instant
+   R = run('kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', want = 'vx', find = 'x=2' })
+   Test.assert(#R.results == 2 and R.by_key.vx and R.by_key.q_v, 'v(x) and v when x = 2')
+   near(rnum(R, 'q_v'), 5, 1e-9, 'v(2)')
+   -- a missing value is named
+   R = run('kinematics', { type = 'a(t)', f = '6t', v0 = '2', want = 'vx' })
+   Test.assert(#R.results == 0 and #R.notes == 1, 'nothing found')
+   Test.assert(report.plain(R.notes[1].text):find('^Not enough conditions to find v%(x%): give x0'),
+               'asks for x0: ' .. report.plain(R.notes[1].text))
+   -- in the app: choosing a function solves again; a quantity does not
+   local app = require 'apps.vce.app'
+   app.open(nil)
+   app.new_problem('kinematics', { type = 'x(t)', f = 't^2+2t', want = 'vx' })
+   Test.assert(app.last_report.by_key.vx and #app.last_report.results == 1, 'v(x) in the app')
+   require('ui').on_event('escape')
+end
+
+function test.kin_find_function()
+   with_recorded(kin_find_function_cases)
+end
+
+-- Vectors ------------------------------------------------------------------------------
+
+function test.vectors_angle()
+   local deg = 180 / math.pi
+   -- i, j, k form; a.b = -4, |a| = |b| = 3
+   local R = run('vectors', { a = 'i+2j-2k', b = '2i-j+2k' })
+   no_errors(R)
+   near(rnum(R, 'dot'), -4, 1e-12, 'a.b')
+   near(rnum(R, 'mag_a'), 3, 1e-12, '|a|')
+   near(rnum(R, 'cos'), -4 / 9, 1e-12, 'cos')
+   near(rnum(R, 'theta'), math.acos(-4 / 9) * deg, 1e-6, 'obtuse angle in degrees')
+   Test.assert(not R.by_key.acute, 'no acute angle unless asked')
+   -- the angle between lines: 180 - theta, in radians
+   R = run('vectors', { a = '(1,2,-2)', b = '[2,-1,2]', range = 'acute', unit = 'rad' })
+   near(rnum(R, 'theta'), math.acos(-4 / 9), 1e-9, 'radians')
+   near(rnum(R, 'acute'), math.pi - math.acos(-4 / 9), 1e-9, 'acute angle')
+   -- other ways of typing a vector; 2D is padded when mixed with 3D
+   for _, pair in ipairs({ { '<1,2,-2>', '2i - j + 2k' }, { '[1;2;-2]', '2*i-1j+2*k' }, { '[[1][2][-2]]', '(2,-1,2)' } }) do
+      R = run('vectors', { a = pair[1], b = pair[2] })
+      near(rnum(R, 'dot'), -4, 1e-12, pair[1] .. ' . ' .. pair[2])
+   end
+   R = run('vectors', { a = '3i+4j', b = '(4,-3,5)' })
+   near(rnum(R, 'theta'), 90, 1e-9, 'perpendicular, 2D with 3D')
+   Test.assert(R.steps[#R.steps - 1].text:find('perpendicular', 1, true), 'says perpendicular')
+   -- three points: angle ABC is at B
+   R = run('vectors', { mode = 'pts', pa = '(1,2,3)', pb = '(0,0,0)', pc = '(3,-1,2)' })
+   near(rnum(R, 'theta'), 60, 1e-6, 'angle ABC')
+   R = run('vectors', { mode = 'pts', pa = '(2,1)', pb = '(1,1)', pc = '(1,3)' })
+   near(rnum(R, 'theta'), 90, 1e-9, 'right angle at B')
+   -- unreadable or missing input
+   R = run('vectors', { a = 'hello', b = 'i' })
+   Test.assert(R.notes[1] and R.notes[1].kind == 'error' and R.notes[1].text:find('^Write a as'), 'bad vector')
+   R = run('vectors', { a = '0i', b = 'i' })
+   Test.assert(R.notes[1] and R.notes[1].text:find('zero vector', 1, true), 'zero vector')
+end
+
+function test.vectors_find_letter()
+   -- a = (1, 1, m), b = (1, 0, 1), angle 60 deg: m = 0 (m = -4 gives 120 deg)
+   local S = require 'apps.vce.solvers.vectors'
+   local I = { a = '(1,1,m)', b = '(1,0,1)' }
+   local shown
+   for _, f in ipairs(S.fields) do
+      if f.id == 'given' then shown = f.show end
+   end
+   Test.assert(shown(I) and not shown({ a = '2i-j', b = 'i+k' }), 'given angle only with a letter')
+   local R = run('vectors', I)
+   Test.assert(R.notes[1].text:find('^Answers in terms of m'), 'answers in terms of m')
+   I.given = '60'
+   R = run('vectors', I)
+   no_errors(R)
+   near(rnum(R, 'param_m'), 0, 1e-6, 'm')
+   Test.assert(not R.by_key.param_m2, 'm = -4 rejected')
+   local rejected = false
+   for _, st in ipairs(R.steps) do
+      if report.plain(st.text):find('rejected', 1, true) then rejected = true end
+   end
+   Test.assert(rejected, 'says why m = -4 is rejected')
+   -- angle between lines: both values
+   I.range = 'acute'
+   R = run('vectors', I)
+   local ms = { rnum(R, 'param_m'), rnum(R, 'param_m2') }
+   table.sort(ms)
+   near(ms[1], -4, 1e-6, 'm = -4')
+   near(ms[2], 0, 1e-6, 'm = 0')
+   -- perpendicular: a.b = 0, in radians
+   R = run('vectors', { a = '2i+mj+k', b = 'i+3j+4k', given = 'pi/2', unit = 'rad' })
+   near(rnum(R, 'param_m'), -2, 1e-6, 'perpendicular')
+   -- three points with a letter, 45 deg
+   R = run('vectors', { mode = 'pts', pa = '(1,2)', pb = '(0,0)', pc = '(m,1)', given = '45' })
+   ms = { rnum(R, 'param_m'), rnum(R, 'param_m2') }
+   table.sort(ms)
+   near(ms[1], -1 / 3, 1e-6, 'm = -1/3')
+   near(ms[2], 3, 1e-6, 'm = 3')
+   -- out of range, two letters
+   R = run('vectors', { a = '(1,1,m)', b = '(1,0,1)', given = '120', range = 'acute' })
+   Test.assert(R.notes[1].text:find('^The angle must be from 0 to 90'), 'acute angle range')
+   R = run('vectors', { a = '(1,n,m)', b = '(1,0,1)', given = '60' })
+   Test.assert(R.notes[1].text:find('^Only one letter'), 'one letter only')
+end
+
 function test.kin_unknown_constant()
    -- a = -k v^2 with a = -4.9 when v = 7 (k = 0.1), v0 = 10
    local R = run('kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7', find = 'v=5' })
@@ -1105,10 +1242,12 @@ end
 
 function test.selftest_cases()
    local selftest = require 'apps.vce.selftest'
-   for _, c in ipairs(selftest.cases) do
-      local ok, got, _, err = selftest.run_case(c)
-      Test.assert(ok, string.format('%s %s: got %s want %s %s', c[1], c[3], tostring(got), tostring(c[4]), err or ''))
-   end
+   with_recorded(function()
+      for _, c in ipairs(selftest.cases) do
+         local ok, got, _, err = selftest.run_case(c)
+         Test.assert(ok, string.format('%s %s: got %s want %s %s', c[1], c[3], tostring(got), tostring(c[4]), err or ''))
+      end
+   end)
 end
 
 -- History persistence --------------------------------------------------------------------
@@ -1611,6 +1750,13 @@ function test.i18n_coverage()
       { 'kinematics', { type = 'a(x)', f = '-4x', want = 't', find = 'x=1' } },
       { 'kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', want = 'x' } },
       { 'kinematics', { type = 'a(v)', f = '-v/2', v0 = '10', want = 'v', find = 'v=5' } },
+      { 'kinematics', { type = 'a(t)', f = '6t', v0 = '2', want = 'vx' } },
+      { 'kinematics', { type = 'a(t)', f = '6t', x0 = '1', v0 = '2', want = 'vx' } },
+      { 'vectors', { mode = 'pts' } }, { 'vectors', { a = 'hello', b = 'i' } }, { 'vectors', { a = '0i', b = 'i' } },
+      { 'vectors', { a = '(1,1,m)', b = '(1,0,1)' } },
+      { 'vectors', { a = '(1,1,m)', b = '(1,0,1)', given = '120', range = 'acute' } },
+      { 'vectors', { a = '(1,n,m)', b = '(1,0,1)', given = '60' } },
+      { 'vectors', { a = '(1,0,0)', b = '(m,0,0)', given = '60' } },
    }) do
       local R = run(extra[1], extra[2])
       for _, n in ipairs(R.notes) do table.insert(notes, n.text) end

@@ -19,7 +19,8 @@ This fork adds a solver toolkit for the tech-active Exam 2 of VCE Mathematical M
 - simultaneous linear equations with a parameter (unique, no or infinitely many solutions);
 - areas, volumes of revolution, arc length and surface area for y = f(x), x = g(y) and parametric curves;
 - DE models (growth, cooling, logistic, mixing, Euler, related rates), with graphs;
-- SUVAT and variable-acceleration kinematics;
+- SUVAT and variable-acceleration kinematics, including any one function such as v(x) or t(x);
+- the angle between two vectors or three points (acute or not, degrees or radians), and a letter in a vector found from a given angle;
 - probability in one place: normal, binomial, discrete and continuous (PDF) random variables, sample proportions (p̂) and their confidence intervals, sample means, linear combinations, and hypothesis tests with Type I/II errors.
 
 You type in the known values and it shows exact results (enter or a click switches to decimals), 2D maths like the CAS screen, and VCE-style working. History and tags are kept with the document. The interface is designed for easy reading:

@@ -41,6 +41,7 @@ Z.UI = {
    ['Probability'] = '概率与统计',
    ['Calculus'] = '微积分',
    ['Mechanics'] = '力学',
+   ['Vectors'] = '向量',
    ['Recent'] = '最近',
    ['More'] = '更多',
    ['History'] = '历史记录',
@@ -162,6 +163,7 @@ Z.SOLVERS = {
    hyptest = { '假设检验', '假设检验（均值）与两类错误', 'p 值、是否拒绝 H0、临界值、第一/二类错误' },
    suvat = { '匀加速', '匀加速运动', 's、u、v、a、t 任给三个（可用其他页面的 f11(2)）' },
    kinematics = { '运动学', '运动学：a(t)、a(v)、a(x)、v(t)、v(x)、x(t)', '积分/求导、由条件定常数、求 t、x、v' },
+   vectors = { '向量夹角', '向量的夹角', '两个向量或三个点（∠ABC）；可取锐角；由夹角求未知字母' },
 }
 
 -- Short home-screen lines (bilingual mode)
@@ -174,6 +176,7 @@ Z.BLURBS = {
    demodels = '增长、冷却、逻辑斯蒂、混合、欧拉法',
    suvat = 's、u、v、a、t 任给三个',
    kinematics = 'a(t)、a(v)、a(x)、v(x)、x(t) 含步骤',
+   vectors = '由向量或三点求夹角；求 m',
    probability = '正态、二项、样本比例、置信区间、检验…',
 }
 
@@ -345,11 +348,27 @@ Z.FIELDS = {
       t1 = { label = '从', hint = 'displacement 位移 / distance 路程' },
       t2 = { label = '到' },
    },
+   vectors = {
+      mode = { label = '使用' },
+      a = { hint = '例 2i-j+3k   (2,-1,3)' },
+      b = { hint = '例 i+mj-k   (1,m,-1)' },
+      pa = { hint = '点，如 (1,2,3)' },
+      pb = { label = '顶点', hint = '顶点：∠ABC 的顶点是 B' },
+      pc = { hint = '点，如 (0,m,1)' },
+      range = { label = '夹角' },
+      unit = { label = '单位' },
+      given = { label = '已知', hint = '已知夹角，求字母：60   pi/3' },
+   },
 }
 
 -- Choice option text in bilingual mode
 Z.OPTIONS = {
    lincomb = { normal = { yes = 'yes 是（W 为正态）', no = 'no 否' } },
+   vectors = {
+      mode = { vec = 'two vectors 两个向量 a, b', pts = 'three points 三个点 A, B, C' },
+      range = { any = '0 to 180° 向量夹角', acute = 'acute 锐角（直线夹角）' },
+      unit = { deg = 'degrees 角度', rad = 'radians 弧度' },
+   },
    kinematics = {
       want = { all = 'everything 全部', x = 'x  position 位置', v = 'v  velocity 速度',
                a = 'a  acceleration 加速度', t = 't  time 时间' },
@@ -476,10 +495,23 @@ Z.TERMS = {
    },
    lincomb = { mean = { 'mean of W', 'W 的均值' }, var = { 'variance of W', 'W 的方差' },
                sd = { 'SD of W', 'W 的标准差' } },
+   vectors = {
+      dot = { 'scalar (dot) product', '数量积（点积）' }, mag = { 'magnitude', '模（长度）' },
+      cos = { 'cosine of the angle', '夹角的余弦' }, theta = { 'angle', '夹角' },
+      acute = { 'acute angle (between lines)', '锐角（直线的夹角）' }, param = { 'unknown value', '未知数' },
+   },
 }
 
 -- Notes and errors: Lua pattern -> Chinese (captures as %1, %2)
 Z.NOTES = {
+   { '^Enter the points A, B and C.*$', '请输入点 A、B、C（∠ABC 的顶点是 B）' },
+   { '^Enter the vectors a and b$', '请输入向量 a 和 b' },
+   { '^Write (.+) as 2i%-j%+3k or %(2,%-1,3%)$', '%1 请写成 2i-j+3k 或 (2,-1,3)' },
+   { '^(.+) is the zero vector: there is no angle$', '%1 是零向量：没有夹角' },
+   { '^Answers in terms of (.+): type the angle in .+ to find (.+)$', '答案用 %1 表示：在“已知”里填夹角可求出 %2' },
+   { '^Only one letter can be found from one angle$', '一个夹角只能求一个字母' },
+   { '^The angle must be from 0 to (.+)$', '夹角必须在 0 到 %1 之间' },
+   { '^No value of (.+) gives this angle$', '没有使夹角成立的 %1 值' },
    { '^Answers in terms of (.+) %(assumed > 0%)%..*$', '答案用 %1 表示（设为正数）。在“已知”里填如 V=16pi 可求出它' },
    { '^Could not write x in terms of y: .*$', '无法把 x 写成 y 的式子：请把曲线类型选为 x = g(y)' },
    { '^Only one letter can be found from one given value$', '一个已知值只能求一个字母' },
@@ -599,10 +631,10 @@ Z.NOTES = {
    { '^Not enough conditions to find (%a) when (.-): give v0.*$', '条件不够：求 %2 时的 %1 需要 v0（已知某时刻的速度）' },
    { '^Not enough conditions to find (%a) when (.-): give t0.*$', '条件不够：求 %2 时的 %1 需要 t0 以及 x0 或 v0' },
    { '^Not enough conditions to find (%a) when (.+)$', '条件不够：无法求 %2 时的 %1' },
-   { '^Not enough conditions to find (%a): give x0.*$', '条件不够：求 %1 需要 x0（已知某时刻的位置）' },
-   { '^Not enough conditions to find (%a): give v0.*$', '条件不够：求 %1 需要 v0（已知某时刻的速度）' },
-   { '^Not enough conditions to find (%a): give t0.*$', '条件不够：求 %1 需要 t0 以及 x0 或 v0' },
-   { '^Not enough conditions to find (%a)$', '条件不够：无法求 %1' },
+   { '^Not enough conditions to find (%S+): give x0.*$', '条件不够：求 %1 需要 x0（已知某时刻的位置）' },
+   { '^Not enough conditions to find (%S+): give v0.*$', '条件不够：求 %1 需要 v0（已知某时刻的速度）' },
+   { '^Not enough conditions to find (%S+): give t0.*$', '条件不够：求 %1 需要 t0 以及 x0 或 v0' },
+   { '^Not enough conditions to find (%S+)$', '条件不够：无法求 %1' },
    { '^You already know (%a): .*$', '%1 已经知道了：请选择要求的其他量' },
    { '^(.+) must be positive: check the event and Pr$', '%1 必须为正：请检查事件和概率' },
    { '^(.+) is not positive: check events/probabilities$', '%1 不为正：请检查事件/概率' },
@@ -623,6 +655,7 @@ Z.NOTES = {
 Z.SECTIONS = {
    { '^In terms of (.+)$', '用 %1 表示' },
    { '^Find (%a)$', '求 %1' },
+   { '^Find (%S+%(%a%))$', '求 %1' },
    { '^With (.+) = (.+)$', '当 %1 = %2 时' },
    { '^Equations$', '方程' },
    { '^Solve$', '求解' },
@@ -634,6 +667,7 @@ Z.SECTIONS = {
    { '^Distribution of (.+)$', '%1 的分布' },
    { '^Confidence interval$', '置信区间' },
    { '^Domains$', '定义域' },
+   { '^Angle$', '夹角' },
    { '^Asymptotes$', '渐近线' },
    { '^Turning points$', '驻点' },
    { '^Points of inflection$', '拐点' },
@@ -697,10 +731,12 @@ Z.HELP = {
       = '提示',
    ['Decimal places: menu > Settings. Answers are rounded only for display; values keep full precision.']
       = '小数位数：menu › 设置。只在显示时四舍五入，内部保持全精度。',
-   ['Kinematics: pick what is given (a(t), a(v), a(x), v(t), v(x), v²(x), x(t)), enter t0, x0, v0 (one known state) and optionally a second condition like x(2)=5. Choose what to find (everything, x, v, a or t) and type the instant in "when": t=3, v=0, x=5 or a=0. If something is missing, a note says which value to give.']
-      = '运动学：选择已知类型（a(t)、a(v)、a(x)、v(t)、v(x)、v²(x)、x(t)），输入 t0、x0、v0（一个已知状态），可再加一个条件如 x(2)=5。在“求”里选要求的量（全部、x、v、a 或 t），在“当”里填时刻：t=3、v=0、x=5 或 a=0。条件不够时会直接提示还缺哪个值。',
+   ['Kinematics: pick what is given (a(t), a(v), a(x), v(t), v(x), v²(x), x(t)), enter t0, x0, v0 (one known state) and optionally a second condition like x(2)=5. Choose what to find (everything, x, v, a or t) and type the instant in "when": t=3, v=0, x=5 or a=0. Find can also be one function, such as v(x), t(x) or x(v): it is worked out from the others. If something is missing, a note says which value to give.']
+      = '运动学：选择已知类型（a(t)、a(v)、a(x)、v(t)、v(x)、v²(x)、x(t)），输入 t0、x0、v0（一个已知状态），可再加一个条件如 x(2)=5。在“求”里选要求的量（全部、x、v、a 或 t），在“当”里填时刻：t=3、v=0、x=5 或 a=0。“求”也可以选一个函数，如 v(x)、t(x) 或 x(v)：由其他关系推出。条件不够时会直接提示还缺哪个值。',
    ['Kinematics formulas: select a derived formula such as x(v) and press enter to see only the working for that formula; its domain is shown under it. Unknown constants (k) come from a condition in "also", e.g. a=-3.5 when v=7 or a(7)=-3.5; several conditions are separated by ;.']
       = '运动学公式：选中推导出的公式（如 x(v)）按 enter，只显示这个公式的步骤；公式下方显示定义域。未知常数（k）由“另一条件”求出，如 a=-3.5 when v=7 或 a(7)=-3.5；多个条件用 ; 分隔。',
+   ['Vector angle: type two vectors (2i-j+3k or (2,-1,3)), or choose three points for angle ABC (the vertex is B). Choose 0 to 180° for the angle between vectors, or acute for the angle between lines (180° − θ when θ is obtuse). With a letter such as m in a vector, type the angle in "given θ" to find m.']
+      = '向量夹角：输入两个向量（2i-j+3k 或 (2,-1,3)），或选三个点求 ∠ABC（顶点是 B）。“0 到 180°”是向量的夹角；“锐角”是直线的夹角（θ 为钝角时取 180° − θ）。向量中有字母（如 m）时，在“已知”里填夹角即可求出 m。',
    ['Function graph: enter f(x) and the x window (the y window is optional). It finds asymptotes, turning points, points of inflection, intercepts, holes, jumps, endpoints and points where f is not differentiable; the choices show or hide each feature (asymptotes are dashed).']
       = '函数图像：输入 f(x) 和 x 范围（y 范围可选），求出渐近线、驻点、拐点、截距、空心点、跳跃点、端点和不可导点；可选择在图上显示或隐藏各项（渐近线为虚线）。',
    ['Graphs: select a graph and press enter (or click it) for full screen. left/right trace · up/down jump between marked points · tab next curve · + / − zoom · 8 4 6 2 pan · 5 reset · l labels · a asymptotes · esc back.']

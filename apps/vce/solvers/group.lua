@@ -44,7 +44,7 @@ function G.new(def)
          end
          table.insert(S.fields, nf)
       end
-      for k in pairs(m.view_fields or {}) do S.view_fields[m.id .. '.' .. k] = true end
+      for k, v in pairs(m.view_fields or {}) do S.view_fields[m.id .. '.' .. k] = v end
    end
 
    function S.member(I)

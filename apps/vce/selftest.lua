@@ -31,6 +31,15 @@ T.cases = {
    { 'kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', find = 't=1' }, 'q_x', 3.1945280 },
    { 'kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7', find = 'v=5' }, 'param_k', 0.1 },
    { 'kinematics', { type = 'a(v)', f = '-k*v^2', v0 = '10', x0 = '0', c2 = 'a=-4.9 when v=7', find = 'v=5' }, 'q_x', 6.9314718 },
+   -- a function chosen in Find, evaluated at a point
+   { 'kinematics', { type = 'x(t)', f = 't^2+2t', want = 'vx' }, 'vx|q9x=3', 4 },
+   { 'kinematics', { type = 'v(x)', f = '2x+1', x0 = '0', want = 'v2x' }, 'v2x|q9x=2', 25 },
+   -- vectors (Specialist Maths)
+   { 'vectors', { a = 'i+2j-2k', b = '2i-j+2k' }, 'theta', 116.38780 },
+   { 'vectors', { a = 'i+2j-2k', b = '2i-j+2k', range = 'acute' }, 'acute', 63.612200 },
+   { 'vectors', { mode = 'pts', pa = '(1,2,3)', pb = '(0,0,0)', pc = '(3,-1,2)' }, 'theta', 60 },
+   { 'vectors', { a = '(1,1,m)', b = '(1,0,1)', given = '60' }, 'param_m', 0 },
+   { 'vectors', { a = '2i+mj+k', b = 'i+3j+4k', given = '90' }, 'param_m', -2 },
    -- key.x / key.y: coordinate of a point result; equations use their right side
    { 'graph', { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8' }, 'va', 2 },
    { 'graph', { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8' }, 'max.x', 0.2679492 },
@@ -69,6 +78,13 @@ T.cases = {
 }
 
 local function value_of(R, key)
+   -- key|q9x=3: a function result evaluated at a point
+   local fkey, var, at = key:match('^(.+)|([%w_]+)=(.+)$')
+   if fkey then
+      local exact = R:get(fkey)
+      local cas = require 'apps.vce.cas'
+      return exact and cas.n(cas.with(exact, { { var, at } })), exact
+   end
    local k, part = key:match('^(.+)%.([xy])$')
    if k then
       local x, y = R:pair_num(k)
