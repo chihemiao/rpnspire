@@ -33,7 +33,12 @@ end
 
 function Test.run(tests)
    local ok, failed = 0, 0
-   for k, v in pairs(tests) do
+   -- run in name order so failures are reproducible
+   local names = {}
+   for k in pairs(tests) do table.insert(names, k) end
+   table.sort(names)
+   for _, k in ipairs(names) do
+      local v = tests[k]
       Test.scope_info = nil
       if type(v) == 'function' then
          Test.failed = nil

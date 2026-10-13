@@ -69,6 +69,17 @@ function on.resize(w, h)
    ui.resize(w, h)
 end
 
+-- Persist the VCE toolkit history with the document
+function on.save()
+   return { vce = require('apps.vce.app').save_state() }
+end
+
+function on.restore(state)
+   if type(state) == 'table' and state.vce then
+      require('apps.vce.app').restore_state(state.vce)
+   end
+end
+
 function on.mouseDown(x, y)
    ui.on_event('mouse_down', x, y)
 end

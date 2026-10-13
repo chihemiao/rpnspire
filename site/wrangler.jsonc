@@ -1,0 +1,24 @@
+// Cloudflare Worker for the VCE toolkit website. Build first (npm run
+// build:site in the repo root), then: npx wrangler deploy (in site/).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vce-maths-toolkit",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    // the Worker handles these; everything else is a static file
+    "run_worker_first": ["/api/*", "/admin", "/downloads/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vce-maths-toolkit-feedback",
+      "database_id": "c43c9574-c335-48f5-a964-5251da26ea8f"
+    }
+  ],
+  "observability": { "enabled": true }
+}

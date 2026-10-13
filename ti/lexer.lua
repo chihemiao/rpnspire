@@ -11,7 +11,7 @@ function lexer.tokenize(input)
     local i, j, token = trie.find(input, lexer.operators_trie, i)
     if i and j > i then
       -- Discard matches followed by a letter!
-      if input:find('^([a-zA-Z])', j) then
+      if input:find('^([a-zA-Z0-9_])', j + 1) and input:sub(j, j):find('[a-zA-Z]') then
         return nil, nil, nil
       end
     end
@@ -22,10 +22,42 @@ function lexer.tokenize(input)
     return input:find('^([(){}[%],])', i)
   end
 
+  -- Math symbols that never belong to an identifier
+  local standalone = {
+    [sym.ROOT] = true, [sym.INFTY] = true, [sym.pi] = true, [sym.EULER] = true,
+    [sym.INTEGRAL] = true, [sym.SUMSEQ] = true, [sym.CDOT] = true, [sym.TIMES] = true,
+    [sym.DIVIDE] = true, [sym.IMAG] = true, [sym.SQUARED] = true,
+  }
+
+  -- Cut identifier at the first multibyte operator/math symbol
+  local function split_word(input, i, j, token)
+    local k = i
+    while k <= j do
+      local b = input:byte(k)
+      if b >= 192 then
+        local len = b >= 240 and 4 or (b >= 224 and 3 or 2)
+        local ch = input:sub(k, k + len - 1)
+        if standalone[ch] or operators.tab[ch] then
+          if k == i then
+            return i, k + len - 1, ch
+          end
+          return i, k - 1, input:sub(i, k - 1)
+        end
+        k = k + len
+      else
+        k = k + 1
+      end
+    end
+    return i, j, token
+  end
+
   local function word(input, i)
     local li, lj, ltoken = input:find('^([%a\128-\255][_%w\128-\255]*[%.\\][%a\128-\255][_%w\128-\255]*)', i)
     if not li then
-      return input:find('^([%a\128-\255][_%w\128-\255]*)', i)
+      li, lj, ltoken = input:find('^([%a\128-\255][_%w\128-\255]*)', i)
+    end
+    if li then
+      return split_word(input, li, lj, ltoken)
     end
     return li, lj, ltoken
   end

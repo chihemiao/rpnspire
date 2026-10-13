@@ -1,0 +1,96 @@
+[
+  {
+    "version": "2.4",
+    "date": "2026-10-13",
+    "en": [
+      "Graphs: the analysis and the graph are worked out when you leave the boxes (enter on the last box, or down past it), not each time you move to the next box, so typing f(x) and the window is quick. A note says so while you are still in the boxes. This applies to the function graph, area/volume, transformations, DE models and unknown constants.",
+      "Function graph: the graph now comes straight after the boxes, so you no longer scroll past six choices to find it. The show/hide choices moved under the answers (Graph options). While you change a box, the graph shows \"Leave the box to redraw the graph\" instead of redrawing on every key.",
+      "Fix: the y window. With only \"y from\" or only \"y to\" filled in, the other limit is now chosen from the part of the curve on that side (before, it kept the old automatic value, which could even be below \"y from\"). Reversed limits (y from ≥ y to) or a limit that is not a number are reported in a note instead of being silently replaced by the automatic window.",
+      "Fix: a box scrolled half under the title bar no longer draws its text over the title."
+    ],
+    "zh": [
+      "图像：离开输入框时（在最后一格按 enter，或按 ▼ 往下移出）才计算和画图，在格子之间移动不再每次都重算，输入 f(x) 和范围不再卡。还在输入框里时会有提示。函数图像、面积/体积、函数变换、微分方程模型和求未知常数都这样。",
+      "函数图像：图像现在紧跟在输入框下面，不用再翻过六个选项才看到。显示/隐藏选项移到答案下面（“图像选项”）。正在修改某一格时，图像位置显示“离开输入框后重新画图”，不会每按一个键就重画。",
+      "修复 y 轴范围：只填 y 的下限（y from 从）或上限（y to 到）时，另一个界限按曲线在那一侧的部分自动选（以前会沿用旧的自动值，甚至可能比下限还小）。上下限填反（下限 ≥ 上限）或不是数时会给出提示，不再悄悄换回自动范围。",
+      "修复：输入框滚到一半被标题栏挡住时，里面的文字不会再画到标题栏上。"
+    ]
+  },
+  {
+    "version": "2.3",
+    "date": "2026-10-10",
+    "en": [
+      "Kinematics: a new Formula row asks for one formula, such as v(x), t(x) or x(v). It is worked out from what is given, with the working. Find (x, v, a or t) and when still work beside it.",
+      "When a formula needs more information, the note says which known values to add, for example \"give x0 and v0\" for v(x) from a(t)."
+    ],
+    "zh": [
+      "运动学：新增“求公式”一行，可以直接选要的公式，比如 v(x)、t(x) 或 x(v)，由已知关系推出并写出步骤。“求值”（x、v、a 或 t）和“当”照常可用。",
+      "条件不够时，提示会写明还要填哪些已知值，比如由 a(t) 求 v(x) 会提示“还要填 x0 和 v0”。"
+    ]
+  },
+  {
+    "version": "2.2.1",
+    "date": "2026-10-10",
+    "en": [
+      "Fix: enter now switches every answer between exact and decimal, kinematics formulas such as v(t) and x(v) too. The working for one formula moved to W (or ctrl+menu › Working for this formula).",
+      "ctrl+C copies more: an answer as it is shown (exact or decimal), a working line, the text in a box even while you type, or a choice. The bottom bar shows what was copied. ctrl+X in a box copies and clears it."
+    ],
+    "zh": [
+      "修复：按 enter 现在所有答案都能在精确值和小数之间切换，运动学的 v(t)、x(v) 等公式也一样。单个公式的步骤改为按 W 查看（或 ctrl+menu › 此公式的步骤）。",
+      "ctrl+C 能复制更多内容：按当前显示的答案（精确值或小数）、步骤行、输入框里的内容（正在输入时也行）、选项。底部提示栏会显示复制了什么。在输入框里按 ctrl+X 复制并清空。"
+    ]
+  },
+  {
+    "version": "2.2",
+    "date": "2026-10-10",
+    "en": [
+      "New topic (press 0 on the home screen): the angle between two vectors, or angle ABC from three points. Choose the angle between vectors (0 to 180°) or the acute angle between lines, in degrees or radians. With a letter such as m in a vector, type the angle to find m.",
+      "Kinematics: Find can be one function, such as v(x), t(x) or x(v). It is worked out from the others, with the working."
+    ],
+    "zh": [
+      "新题型（首页按 0）：两个向量的夹角，或由三个点求 ∠ABC。可选向量夹角（0 到 180°）或直线夹角（锐角），角度或弧度都行。向量里有字母（如 m）时，填入夹角就能求出 m。",
+      "运动学：“求”可以选一个函数，比如 v(x)、t(x) 或 x(v)，由其他关系推出来并写出步骤。"
+    ]
+  },
+  {
+    "version": "2.1",
+    "date": "2026-10-08",
+    "en": [
+      "Two editions: vce.tns is English only, vce_zh.tns shows Chinese and English (and can switch to English).",
+      "The version is shown in the Help title bar (menu › Help), so you can compare it with this site."
+    ],
+    "zh": [
+      "分成两个版本：vce.tns 纯英文，vce_zh.tns 中英双语（也可以切换成纯英文）。",
+      "帮助页（menu › Help）的标题栏显示版本号，方便和网站上的最新版对比。"
+    ]
+  },
+  {
+    "version": "2.0",
+    "date": "2026-10-08",
+    "en": [
+      "New topics: find unknown constants, transformations of graphs, simultaneous equations with a parameter, sample proportion.",
+      "Simpler home screen: one Probability entry, MM / SM badges, larger text and calmer colours.",
+      "Kinematics: choose what to find (x, v, a or t); a note says which condition is missing.",
+      "Volumes of revolution with limits in y (y = 1 to y = 4) and letters such as a in the limits.",
+      "Asymptotes stay visible when they lie on an axis."
+    ],
+    "zh": [
+      "新增题型：求未知常数、函数图像变换、含参数的方程组、样本比例 p̂。",
+      "首页更简单：概率统计合成一个入口，标出 MM / SM，字更大、颜色更柔和。",
+      "运动学：可以直接选要求 x、v、a 还是 t；条件不够时会提示缺哪个条件。",
+      "旋转体体积支持 y 的范围（从 y=1 到 y=4），范围里可以有字母常数，比如 a。",
+      "渐近线和坐标轴重合时也能看见。"
+    ]
+  },
+  {
+    "version": "1.0",
+    "date": "2026-10-05",
+    "en": [
+      "First release: probability (normal, binomial, discrete, PDF, confidence intervals, hypothesis tests), SUVAT, kinematics, function graphs, areas and volumes, DE models.",
+      "Every answer comes with VCE-style working; switch any answer between exact and decimal."
+    ],
+    "zh": [
+      "第一个版本：概率统计（正态、二项、离散、概率密度、置信区间、假设检验）、匀加速 SUVAT、运动学、函数图像、面积与体积、微分方程模型。",
+      "每个答案都带 VCE 评分习惯的步骤；精确值和小数可以随时切换。"
+    ]
+  }
+]

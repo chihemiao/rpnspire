@@ -22,6 +22,12 @@ return {
   STAR    = "\226\152\133", -- filled star
   CDOT    = "\194\183",
   TIMES   = "\195\151",
+  DIVIDE  = "\195\183",
+  INTEGRAL = "\226\136\171",
+  APPROX  = "\226\137\136",
+  PLUSMINUS = "\194\177",
+  SQUARED = "\194\178",
+  SUMSEQ  = "\206\163", -- capital sigma
 
   alpha   = "\206\177",
   beta    = "\206\178",
