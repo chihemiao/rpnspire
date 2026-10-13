@@ -192,8 +192,9 @@ function A.build()
       if row.kind == 'link' then return report.plain(row.title .. (row.desc and ('  ' .. row.desc) or '')) end
    end
    sheet.on_copied = function(_, text) A.copied(text) end
-   sheet.on_select = function(_, row) A.update_hint(row) end
-   sheet.on_commit = function(_, row) A.safe(A.on_commit, row) end
+   sheet.on_select = function(_, row) A.safe(A.on_select, row) end
+   sheet.on_edge = function(_, dir) A.safe(A.on_edge, dir) end
+   sheet.on_commit = function(_, row, to) A.safe(A.on_commit, row, to) end
    sheet.on_submit = function(_, row) A.safe(A.on_submit, row) end
    sheet.on_choice = function(_, row) A.safe(A.on_choice, row) end
    sheet.on_activate = function(_, row) A.safe(A.on_activate, row) end
@@ -398,12 +399,16 @@ function A.build_problem_rows(p, R, I)
       return rows
    end
 
+   -- choices that only change the picture (graph_option) come after the
+   -- answers, so the graph follows the boxes directly
+   local later = {}
    for _, f in ipairs(s.fields) do
       if not f.show or f.show(I) then
          local label = type(f.label) == 'function' and f.label(I) or f.label
          local hint
          local owner, fid = field_owner(s, f)
          label, hint = i18n.field(owner, fid, label, f.hint)
+         local into = f.graph_option and later or rows
          if f.kind == 'choice' then
             local cur = p.inputs[f.id] or f.options[1][1]
             local idx = 1
@@ -420,9 +425,11 @@ function A.build_problem_rows(p, R, I)
                end
                options[k] = { o[1], text, full }
             end
-            table.insert(rows, { kind = 'choice', id = f.id, label = label, options = options, index = idx })
+            table.insert(into, { kind = 'choice', id = f.id, label = label, options = options, index = idx,
+                                 after = f.graph_option })
          else
-            table.insert(rows, { kind = 'input', id = f.id, label = label, text = p.inputs[f.id] or '', hint = hint })
+            table.insert(into, { kind = 'input', id = f.id, label = label, text = p.inputs[f.id] or '', hint = hint,
+                                 after = f.graph_option })
          end
       end
    end
@@ -442,7 +449,8 @@ function A.build_problem_rows(p, R, I)
    end
    if R.graph then
       table.insert(rows, { kind = 'header', text = T('Graph') .. '  (' .. T('enter: full screen') .. ')' })
-      table.insert(rows, { kind = 'graph', spec = R.graph, labels = R.graph_labels, key = 'graph' })
+      table.insert(rows, { kind = 'graph', spec = R.graph, labels = R.graph_labels, key = 'graph',
+                           wait = T('Leave the box to redraw the graph', '\n') })
    end
    p.modes = p.modes or {}
    local tsid = s.member and (s.member(I) or {}).id or s.id
@@ -458,6 +466,10 @@ function A.build_problem_rows(p, R, I)
                               rkey = r.key, caption = r.domain and (T('domain') .. ': `' .. r.domain .. '`'),
                               detail = is_formula(r.exact) and R:steps_for(r.key) ~= nil })
       end
+   end
+   if R.graph and #later > 0 then
+      table.insert(rows, { kind = 'header', text = T('Graph options') })
+      for _, r in ipairs(later) do table.insert(rows, r) end
    end
    if #R.steps > 0 then
       table.insert(rows, { kind = 'header', text = T('Working') })
@@ -523,8 +535,18 @@ function A.solve(p)
       p._cache = c
    end
    local R = copy_report(c.R)
-   if s.view then pcall(s.view, I, R) end
+   if s.view then
+      local ok, err = pcall(s.view, I, R)
+      if not ok then R:note('Error: ' .. errmsg(err), 'error') end
+   end
    return R, I
+end
+
+-- True when the inputs changed the maths since the last solve (not only
+-- the picture)
+local function needs_solve(p)
+   local s = solvers.get(p.solver)
+   return not (p._cache and p._cache.key == solve_key(s, inputs_for(s, p)))
 end
 
 -- Forget cached results (document functions such as f11 may have changed)
@@ -548,6 +570,7 @@ end
 function A.refresh_problem(keep)
    local p = A.current()
    if not p then return A.show_home() end
+   p._dirty = nil
    local R, I = A.solve(p)
    A.last_report = R
    A.sheet:set_rows(A.build_problem_rows(p, R, I), keep)
@@ -569,40 +592,79 @@ function A.show_problem(idx)
    A.refresh_problem(false)
 end
 
-function A.on_commit(row)
+-- A box or choice of the question (not a graph option under the answers)
+local function is_box(row)
+   return row and (row.kind == 'input' or row.kind == 'choice') and not row.after
+end
+
+-- Solvers marked `defer` (graphs, slow analysis) are worked out when the
+-- selection leaves the boxes, not each time it moves from one box to the
+-- next: until then the sheet only shows the boxes and a note.
+function A.on_commit(row, to)
    if A.screen ~= 'problem' then return end
    local p = A.current()
    if (p.inputs[row.id] or '') == (row.text or '') then return end
    p.inputs[row.id] = row.text
+   local s = solvers.get(p.solver)
+   if s.defer and (to == nil or is_box(to)) and (p._dirty or needs_solve(p)) then
+      p._dirty = true
+      return A.show_pending(p)
+   end
    A.refresh_problem(true)
+end
+
+-- The boxes of a deferred problem, waiting to be worked out
+function A.show_pending(p)
+   local s = solvers.get(p.solver)
+   local R = report.new()
+   R:note('The answers and graph update when you leave the boxes')
+   A.last_report = R
+   A.sheet:set_rows(A.build_problem_rows(p, R, inputs_for(s, p)), true)
+   A.update_hint(A.sheet:selected())
+end
+
+-- Work out a problem left waiting by show_pending; true if it was
+function A.settle()
+   local p = A.current()
+   if A.screen ~= 'problem' or not (p and p._dirty) then return false end
+   A.refresh_problem(true)
+   return true
+end
+
+-- After the boxes: select the graph, or else the first answer; with
+-- neither, scroll to the note that says what is missing
+function A.show_outcome()
+   local sh = A.sheet
+   for k, r in ipairs(sh.rows) do
+      if r.kind == 'graph' or r.kind == 'result' then return sh:select(k) end
+   end
+   for k = (sh.sel or 0) + 1, #sh.rows do
+      if sh.rows[k].kind == 'note' then return sh:reveal(k) end
+   end
 end
 
 function A.on_submit(_)
    if A.screen ~= 'problem' then return end
    local sh = A.sheet
-   -- move to the next input; after the last one jump to the results
-   local i = sh.sel or 0
-   for k = i + 1, #sh.rows do
-      local r = sh.rows[k]
-      if r.kind == 'input' or r.kind == 'choice' then
-         sh:select(k)
-         return
-      end
-      if r.kind == 'result' then break end
-   end
-   for k = 1, #sh.rows do
-      if sh.rows[k].kind == 'result' then
-         sh:select(k)
-         return
-      end
-   end
-   -- no answer: show the note that says what is missing
+   -- move to the next box; after the last one show the graph or the answers
    for k = (sh.sel or 0) + 1, #sh.rows do
-      if sh.rows[k].kind == 'note' then
-         sh:reveal(k)
-         return
-      end
+      local r = sh.rows[k]
+      if is_box(r) then return sh:select(k) end
+      if r.kind == 'result' or r.kind == 'graph' then break end
    end
+   A.settle()
+   A.show_outcome()
+end
+
+-- Leaving the boxes (to the graph, an answer, ...) works out a waiting problem
+function A.on_select(row)
+   if A.screen == 'problem' and row and not is_box(row) then A.settle() end
+   A.update_hint(A.sheet:selected())
+end
+
+-- Down from the last box when nothing can be selected below it
+function A.on_edge(dir)
+   if dir > 0 and A.settle() then A.show_outcome() end
 end
 
 function A.on_choice(row)

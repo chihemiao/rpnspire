@@ -1,5 +1,21 @@
 [
   {
+    "version": "2.4",
+    "date": "2026-10-13",
+    "en": [
+      "Graphs: the analysis and the graph are worked out when you leave the boxes (enter on the last box, or down past it), not each time you move to the next box, so typing f(x) and the window is quick. A note says so while you are still in the boxes. This applies to the function graph, area/volume, transformations, DE models and unknown constants.",
+      "Function graph: the graph now comes straight after the boxes, so you no longer scroll past six choices to find it. The show/hide choices moved under the answers (Graph options). While you change a box, the graph shows \"Leave the box to redraw the graph\" instead of redrawing on every key.",
+      "Fix: the y window. With only \"y from\" or only \"y to\" filled in, the other limit is now chosen from the part of the curve on that side (before, it kept the old automatic value, which could even be below \"y from\"). Reversed limits (y from ≥ y to) or a limit that is not a number are reported in a note instead of being silently replaced by the automatic window.",
+      "Fix: a box scrolled half under the title bar no longer draws its text over the title."
+    ],
+    "zh": [
+      "图像：离开输入框时（在最后一格按 enter，或按 ▼ 往下移出）才计算和画图，在格子之间移动不再每次都重算，输入 f(x) 和范围不再卡。还在输入框里时会有提示。函数图像、面积/体积、函数变换、微分方程模型和求未知常数都这样。",
+      "函数图像：图像现在紧跟在输入框下面，不用再翻过六个选项才看到。显示/隐藏选项移到答案下面（“图像选项”）。正在修改某一格时，图像位置显示“离开输入框后重新画图”，不会每按一个键就重画。",
+      "修复 y 轴范围：只填 y 的下限（y from 从）或上限（y to 到）时，另一个界限按曲线在那一侧的部分自动选（以前会沿用旧的自动值，甚至可能比下限还小）。上下限填反（下限 ≥ 上限）或不是数时会给出提示，不再悄悄换回自动范围。",
+      "修复：输入框滚到一半被标题栏挡住时，里面的文字不会再画到标题栏上。"
+    ]
+  },
+  {
     "version": "2.3",
     "date": "2026-10-10",
     "en": [

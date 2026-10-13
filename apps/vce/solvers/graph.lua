@@ -18,18 +18,22 @@ local S = {
    short = 'Graph',
    group = 'Calculus',
    desc = 'Asymptotes, turning points, inflection, intercepts, discontinuities',
+   -- worked out when the selection leaves the boxes (the analysis is slow)
+   defer = true,
    fields = {
       { id = 'f', label = 'f(x) =', hint = '(x^2-1)/(x-2)   x*e^(-x)   f11(x)' },
       { id = 'xmin', label = 'x from', hint = '-10' },
       { id = 'xmax', label = 'x to', hint = '10' },
       { id = 'ymin', label = 'y from', hint = 'auto' },
       { id = 'ymax', label = 'y to', hint = 'auto' },
-      { id = 'asym', label = 'Asymptotes', kind = 'choice', options = { { 'dashed', 'dashed lines' }, { 'hide', 'hide' } } },
-      { id = 'turn', label = 'Turning pts', kind = 'choice', options = SHOW },
-      { id = 'infl', label = 'Inflection', kind = 'choice', options = SHOW },
-      { id = 'icpt', label = 'Intercepts', kind = 'choice', options = SHOW },
-      { id = 'disc', label = 'Discontinuity', kind = 'choice', options = SHOW },
-      { id = 'labels', label = 'Labels', kind = 'choice', options = SHOW },
+      -- listed under the answers (they only change the picture)
+      { id = 'asym', label = 'Asymptotes', kind = 'choice', options = { { 'dashed', 'dashed lines' }, { 'hide', 'hide' } },
+        graph_option = true },
+      { id = 'turn', label = 'Turning pts', kind = 'choice', options = SHOW, graph_option = true },
+      { id = 'infl', label = 'Inflection', kind = 'choice', options = SHOW, graph_option = true },
+      { id = 'icpt', label = 'Intercepts', kind = 'choice', options = SHOW, graph_option = true },
+      { id = 'disc', label = 'Discontinuity', kind = 'choice', options = SHOW, graph_option = true },
+      { id = 'labels', label = 'Labels', kind = 'choice', options = SHOW, graph_option = true },
    },
    example = { f = '(x^2-1)/(x-2)', xmin = '-6', xmax = '8' },
 }
@@ -708,7 +712,6 @@ function S.solve(I, R)
    end)
 
    R.graph = spec
-   S.view(I, R)
 end
 
 -- Inputs that only change the picture: the app re-applies them to a cached
@@ -716,12 +719,23 @@ end
 S.view_fields = { ymin = true, ymax = true, asym = true, turn = true, infl = true, icpt = true,
                   disc = true, labels = true }
 
+-- A y limit as a number; nil when empty (chosen from the curve by
+-- plot.auto_range) or unreadable (with a note)
+local function y_limit(R, text, name)
+   if not text then return nil end
+   local ok, v = pcall(U.read, text)
+   if ok and v and v.num then return v.num end
+   R:note(name .. ' must be a number', 'error')
+end
+
 function S.view(I, R)
    local spec = R.graph
    if not spec then return end
-   local ymin = I.ymin and U.read(I.ymin).num or nil
-   local ymax = I.ymax and U.read(I.ymax).num or nil
-   if ymin and ymax and ymax <= ymin then ymin, ymax = nil, nil end
+   local ymin, ymax = y_limit(R, I.ymin, 'y from'), y_limit(R, I.ymax, 'y to')
+   if ymin and ymax and ymax <= ymin then
+      R:note('y from must be less than y to', 'error')
+      ymin, ymax = nil, nil
+   end
    spec.ymin, spec.ymax = ymin, ymax
    local hide = {}
    if I.asym == 'hide' then hide.asym = true end

@@ -78,18 +78,18 @@
         },
         {
           keys: '-6{enter}8{enter}',
-          zh: 'x 的范围填 −6 到 8（每格按 <kbd>enter</kbd>）。y 的范围可以不填。',
-          en: 'Set x from −6 to 8 (<kbd>enter</kbd> after each). The y range can stay empty.',
+          zh: 'x 的范围填 −6 到 8（每格按 <kbd>enter</kbd>）。在格子之间移动时不会计算，所以输入不卡。',
+          en: 'Set x from −6 to 8 (<kbd>enter</kbd> after each). Nothing is worked out while you move between the boxes, so typing stays quick.',
         },
         {
-          keys: '{down*9}',
-          zh: '往下翻：图上已经标好渐近线（虚线）、极值点和截距。',
-          en: 'Scroll down: the graph already shows the asymptotes (dashed), turning points and intercepts.',
+          keys: '{enter*2}',
+          zh: 'y 的范围可以不填，再按两次 <kbd>enter</kbd> 离开输入框：这时才画图，图就在输入框下面，已经标好渐近线（虚线）、极值点和截距。',
+          en: 'The y range can stay empty: press <kbd>enter</kbd> twice more to leave the boxes. Now it draws the graph, right under the boxes, with the asymptotes (dashed), turning points and intercepts.',
         },
         {
-          keys: '{down*3}',
-          zh: '再往下是所有答案（绿色），按 <kbd>enter</kbd> 可在精确值和小数之间切换；最下面是步骤。',
-          en: 'Below it are all the answers (green); <kbd>enter</kbd> switches exact ⇔ decimal. The working is underneath.',
+          keys: '{down*2}',
+          zh: '图下面是所有答案（绿色），按 <kbd>enter</kbd> 可在精确值和小数之间切换；再往下是图像选项和步骤。',
+          en: 'Below the graph are all the answers (green); <kbd>enter</kbd> switches exact ⇔ decimal. Further down are the graph options and the working.',
         },
       ],
       appEnd: {

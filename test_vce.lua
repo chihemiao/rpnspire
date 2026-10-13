@@ -577,6 +577,32 @@ function test.plot_cache()
    Test.assert(evals > first, 'new window samples again')
 end
 
+-- One y limit given: the other comes from the part of the curve on its side
+function test.plot_y_limits()
+   local plot = require 'ui.plot'
+   local function win(lo, hi)
+      local spec = { xmin = -6, xmax = 8, ymin = lo, ymax = hi, curves = { { fn = function(x) return x * x - 4 end } } }
+      plot.auto_range(spec)
+      return spec.ymin, spec.ymax
+   end
+   local lo, hi = win()
+   Test.assert(lo < -4 and hi > 50, 'auto shows the curve')
+   lo, hi = win(-2, nil)
+   Test.assert(lo == -2 and hi > 60, 'y from kept, y to above the curve: ' .. hi)
+   lo, hi = win(50, nil)
+   Test.assert(lo == 50 and hi > 60 and hi < 70, 'y to from the part above y from: ' .. hi)
+   lo, hi = win(nil, 10)
+   Test.assert(hi == 10 and lo < -4 and lo > -10, 'y from from the part below y to: ' .. lo)
+   lo, hi = win(70, nil)
+   Test.assert(lo == 70 and hi > 70, 'nothing above y from: still a window')
+   lo, hi = win(nil, -10)
+   Test.assert(hi == -10 and lo < -10, 'nothing below y to: still a window')
+   lo, hi = win(5, 3)
+   Test.assert(lo < hi and lo < -4, 'reversed limits: automatic')
+   lo, hi = win(-1, 1)
+   Test.assert(lo == -1 and hi == 1, 'both limits kept')
+end
+
 -- Function graph analysis ---------------------------------------------------------------
 
 local function all_pairs(R, key)
@@ -679,6 +705,29 @@ function test.graph_options()
    Test.assert(R.graph_labels == false, 'labels off')
    R = run('graph', { f = 'x^2', xmin = '3', xmax = '1' })
    Test.assert(#R.notes > 0, 'bad window reported')
+end
+
+function test.graph_y_window()
+   local plot = require 'ui.plot'
+   local base = { f = 'x^2-4', xmin = '-6', xmax = '8' }
+   local function with(extra)
+      local I = {}
+      for k, v in pairs(base) do I[k] = v end
+      for k, v in pairs(extra) do I[k] = v end
+      local R = run('graph', I)
+      plot.auto_range(R.graph)
+      return R, R.graph.ymin, R.graph.ymax
+   end
+   local R, lo, hi = with({ ymin = '-2', ymax = '3' })
+   Test.assert(lo == -2 and hi == 3 and #R.notes == 0, 'both limits')
+   R, lo, hi = with({ ymin = '50' })
+   Test.assert(lo == 50 and hi > 60 and hi < 70, 'y to chosen above y from')
+   R, lo, hi = with({ ymin = '50', ymax = '3' })
+   Test.assert(lo < -4 and hi > 50, 'reversed: automatic')
+   Test.assert(R.notes[1] and R.notes[1].text == 'y from must be less than y to', 'reversed limits reported')
+   R, lo, hi = with({ ymax = 'abc' })
+   Test.assert(R.notes[1] and R.notes[1].text == 'y to must be a number', 'unreadable limit reported')
+   Test.assert(lo < -4 and hi > 50, 'unreadable limit: automatic')
 end
 
 -- Area, volume, arc length, surface area ----------------------------------------------
@@ -1450,6 +1499,12 @@ function test.ui_smoke()
             Test.assert(app.current().inputs.type == s.id, h.id .. ': picked ' .. s.id)
          end
          fill(s, h.is_group and (s.id .. '.') or '')
+         -- leave the boxes (topics with a graph are worked out then)
+         for _ = 1, 40 do
+            local r = app.sheet:selected()
+            if not (r and (r.kind == 'input' or r.kind == 'choice')) then break end
+            key('down')
+         end
          check_and_walk(s)
          key('escape')
          Test.assert(app.screen == 'home', 'back home from ' .. s.id)
@@ -1624,6 +1679,118 @@ function test.ui_solve_cache()
    app.current().inputs.xmax = '9'
    app.refresh_problem(true)
    Test.assert(calls > 0, 'new window solves again')
+   cas.backend = orig
+   math.evalStr = orig
+end
+
+-- Topics with a graph are worked out when the selection leaves the boxes
+function test.ui_graph_defer()
+   local ui = require 'ui'
+   local app = require 'apps.vce.app'
+   local function key(name, ...) ui.on_event(name, ...) end
+   local function type_text(str)
+      for ch in str:gmatch('[\1-\127\194-\244][\128-\191]*') do key('char', ch) end
+   end
+   local function find(pred)
+      for i, r in ipairs(app.sheet.rows) do if pred(r) then return i, r end end
+   end
+   local function graph_row() return select(2, find(function(r) return r.kind == 'graph' end)) end
+   local calls = 0
+   local orig = cas.backend
+   cas.backend = function(e) calls = calls + 1 return orig(e) end
+   math.evalStr = cas.backend
+   app.open(nil)
+   app.new_problem('graph')
+   Test.assert(app.sheet:selected().id == 'f', 'starts on f(x)')
+   calls = 0
+   type_text('(x^2-1)/(x-2)') key('enter_key')
+   type_text('-6') key('enter_key')
+   type_text('8') key('enter_key')
+   Test.assert(app.sheet:selected().id == 'ymin', 'enter goes from box to box')
+   Test.assert(calls == 0, 'nothing worked out between the boxes (' .. calls .. ' CAS calls)')
+   Test.assert(not graph_row(), 'no graph yet')
+   Test.assert(find(function(r) return r.kind == 'note' and r.text:find('leave the boxes') end), 'note says when')
+   key('down')
+   Test.assert(app.sheet:selected().id == 'ymax' and calls == 0, 'still in the boxes')
+   key('down')
+   Test.assert(calls > 0, 'leaving the boxes works it out')
+   local sel = app.sheet:selected()
+   Test.assert(sel.kind == 'graph', 'the graph is selected after the boxes')
+   -- boxes half scrolled under the title bar stay inside the sheet
+   local top = app.sheet:frame().y
+   Test.assert(app.sheet.scroll_y > 0, 'scrolled to the graph')
+   local outside = 0
+   local gc = setmetatable({}, { __index = function(_, k)
+      if k == 'getStringWidth' then return function(_, str) return 6 * #(str or '') end end
+      if k == 'getStringHeight' then return function() return 12 end end
+      if k == 'clipRect' then
+         return function(_, op, _, y) if op == 'set' and y > 0 and y < top then outside = outside + 1 end end
+      end
+      return function() end
+   end })
+   ui.paint(ui.GC(gc, 0, 0))
+   Test.assert(outside == 0, 'no clip reaches above the sheet (' .. outside .. ')')
+   Test.assert(#app.last_report.results > 0, 'answers too')
+   -- the graph comes right after the boxes; its options after the answers
+   local gi = find(function(r) return r.kind == 'graph' end)
+   local yi = find(function(r) return r.id == 'ymax' end)
+   local ai = find(function(r) return r.kind == 'result' end)
+   local oi, orow = find(function(r) return r.id == 'asym' end)
+   Test.assert(gi < ai and ai < oi and orow.after, 'boxes, graph, answers, then the graph options')
+   for k = yi + 1, gi - 1 do
+      Test.assert(not app.sheet:is_selectable(app.sheet.rows[k]), 'nothing to select between the boxes and the graph')
+   end
+   -- a view option still applies at once
+   app.sheet:select(oi)
+   calls = 0
+   key('right')
+   Test.assert(calls == 0 and graph_row().spec.hide.asym, 'graph option applies without solving again')
+   -- enter on the last box (nothing changed) shows the graph again
+   app.sheet:select((find(function(r) return r.id == 'ymax' end)))
+   key('enter_key')
+   Test.assert(app.sheet:selected().kind == 'graph' and calls == 0, 'enter on the last box: graph')
+   -- typing in a box shows a placeholder instead of redrawing the graph on every key
+   local plot = require 'ui.plot'
+   local draws, pdraw = 0, plot.draw
+   plot.draw = function(...) draws = draws + 1 return pdraw(...) end
+   app.sheet:select((find(function(r) return r.id == 'ymin' end)))
+   app.sheet:reveal((find(function(r) return r.kind == 'graph' end)))
+   paint_all()
+   local per = draws -- graph draws in one paint (other tests may leave layers open)
+   Test.assert(per >= 1, 'graph on screen')
+   type_text('1') paint_all() type_text('0') paint_all()
+   Test.assert(draws == per, 'no redraw while the box is changed')
+   key('escape') paint_all()
+   Test.assert(draws == 2 * per, 'esc puts the graph back')
+   plot.draw = pdraw
+   -- y limits only change the picture: applied when moving to the next box
+   app.sheet:select((find(function(r) return r.id == 'ymin' end)))
+   local cache = app.current()._cache
+   type_text('-5') key('enter_key')
+   Test.assert(app.current()._cache == cache and graph_row() and graph_row().spec.ymin == -5,
+               'y from applied at once, without solving again')
+   -- a new x window waits until the boxes are left
+   app.sheet:select((find(function(r) return r.id == 'xmin' end)))
+   calls = 0
+   key('clear') type_text('-4') key('down')
+   Test.assert(app.sheet:selected().id == 'xmax' and calls == 0 and not graph_row(), 'new x from waits')
+   key('down') key('down') key('down')
+   Test.assert(calls > 0 and app.sheet:selected().kind == 'graph', 'worked out on leaving the boxes')
+   Test.assert(graph_row().spec.xmin == -4 and graph_row().spec.ymin == -5, 'new window, y from kept')
+   -- clicking (selecting) an answer while editing also works it out
+   app.sheet:select((find(function(r) return r.id == 'xmax' end)))
+   key('clear') type_text('9')
+   calls = 0
+   app.sheet:select((find(function(r) return r.kind == 'result' end)))
+   Test.assert(calls > 0 and graph_row().spec.xmax == 9, 'selecting an answer works it out')
+   -- leaving the problem and coming back works out a waiting one
+   app.sheet:select((find(function(r) return r.id == 'xmin' end)))
+   key('clear') type_text('-3') key('down')
+   Test.assert(app.current()._dirty, 'waiting')
+   local idx = app.history.current
+   key('escape')
+   app.show_problem(idx)
+   Test.assert(not app.current()._dirty and graph_row() and graph_row().spec.xmin == -3, 'reopened: worked out')
    cas.backend = orig
    math.evalStr = orig
 end

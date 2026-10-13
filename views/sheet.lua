@@ -10,12 +10,14 @@
 --   note    { text, level }                  info/warn/error box with an icon
 --   link    { title, desc, key, badges }     menu entry (enter/click activates)
 --   math    { m }                            centred display maths
---   graph   { spec, labels }                 plot (enter/click opens full screen)
+--   graph   { spec, labels, wait }           plot (enter/click opens full screen); while a
+--                                            box is being changed only `wait` is shown
 --   text    { text }                         paragraph (help)
 --   legend  { items = { {badge, text} } }    course badges explained (MM, SM)
 --
 -- Callbacks (assign on the instance):
---   on_commit(row)            input text changed (row.text updated)
+--   on_commit(row, to)        input text changed (row.text updated); `to` is the
+--                             row being selected (nil: enter or a refresh)
 --   on_submit(row)            enter pressed on an input
 --   on_choice(row)            choice changed
 --   on_pick(row)              enter on a choice with many options (show a list)
@@ -23,6 +25,7 @@
 --   on_toggle(row)            result toggled
 --   on_escape()               escape (nothing to cancel)
 --   on_select(row)            selection changed
+--   on_edge(dir)              up/down with no row to move to (dir -1/1)
 --   on_context(row)           context menu key
 --   on_delete(row)            backspace on a non-input row
 --   on_shortcut(char)         character typed on a non-input row; return true if handled
@@ -176,7 +179,7 @@ function ui.sheet:select(i)
    if i == self.sel then return end
    local target = self.rows[i]
    local tkey = target and (target.key or target.id)
-   if self:commit_edit() and self.rows[i] ~= target then
+   if self:commit_edit(target) and self.rows[i] ~= target then
       -- committing rebuilt the rows: find the target row again
       i = nil
       for k, r in ipairs(self.rows) do
@@ -247,8 +250,14 @@ function ui.sheet:edit_text()
    return self.edit and join(self.edit.chars) or nil
 end
 
--- Commit edit; returns true if the text changed
-function ui.sheet:commit_edit()
+-- True while the box being edited holds text that is not committed yet
+function ui.sheet:edit_changed()
+   local e = self.edit
+   return e ~= nil and join(e.chars) ~= e.orig
+end
+
+-- Commit edit; returns true if the text changed. to: the row being selected
+function ui.sheet:commit_edit(to)
    local e = self.edit
    if not e then return false end
    local text = join(e.chars)
@@ -256,7 +265,7 @@ function ui.sheet:commit_edit()
       e.row.text = text
       e.row._lay = nil
       e.orig = text
-      if self.on_commit then self:on_commit(e.row) end
+      if self.on_commit then self:on_commit(e.row, to) end
       return true
    end
    return false
@@ -609,6 +618,17 @@ local function set_color(g, c)
    g:setColorRGB(c)
 end
 
+-- Clip to a rectangle inside the sheet (a row half scrolled out must not
+-- draw over the title bar); false when nothing of it is on screen
+function ui.sheet:clip_to(g, x, y, w, h)
+   local f = self:frame()
+   local x2, y2 = min(x + w, f.x + f.width + 1), min(y + h, f.y + f.height + 1)
+   x, y = max(x, f.x), max(y, f.y)
+   if x2 <= x or y2 <= y then return false end
+   g:clipRect('set', x, y, x2 - x, y2 - y)
+   return true
+end
+
 function ui.sheet:draw_self(wgc)
    local g = wgc.gc
    local f = self:frame()
@@ -674,10 +694,11 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
          local text = join(e.chars)
          set_color(g, C.text)
          -- clip to field
-         g:clipRect('set', vx + 1, y + PAD, L.vw - 2, fh - 1)
-         g:drawString(text, tx, y + PAD + 1, 'top')
-         set_color(g, C.caret)
-         g:fillRect(tx + cw, y + PAD, 2, L.th + 2)
+         if self:clip_to(g, vx + 1, y + PAD, L.vw - 2, fh - 1) then
+            g:drawString(text, tx, y + PAD + 1, 'top')
+            set_color(g, C.caret)
+            g:fillRect(tx + cw, y + PAD, 2, L.th + 2)
+         end
          g:clipRect('reset')
          local f = self:frame()
          g:clipRect('set', f.x, f.y, f.width + 1, f.height + 1)
@@ -708,8 +729,7 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
          if vbox.w > L.vw - 4 and selected then
             cx = cx - self.hscroll
          end
-         g:clipRect('set', vx + 1, y, L.vw - 1, L.h)
-         mb.draw(vbox, g, cx, vy)
+         if self:clip_to(g, vx + 1, y, L.vw - 1, L.h) then mb.draw(vbox, g, cx, vy) end
          g:clipRect('reset')
          local f = self:frame()
          g:clipRect('set', f.x, f.y, f.width + 1, f.height + 1)
@@ -826,7 +846,26 @@ function ui.sheet:draw_row(g, r, L, x, y, W, selected)
       end
    elseif k == 'graph' then
       local gr = ui.rect(x + PAD, y + PAD, W - 2 * PAD - 3, L.h - 2 * PAD)
-      local ok = pcall(plot.draw, g, gr, r.spec, { small = true, labels = r.labels, clip = self:frame() })
+      local ok = true
+      if self:edit_changed() then
+         -- a box is being changed: no redraw on every key (slow), the graph
+         -- is drawn again when the box is left
+         set_color(g, C.field)
+         g:fillRect(gr.x, gr.y, gr.width, gr.height)
+         set_color(g, C.field_border)
+         g:drawRect(gr.x, gr.y, gr.width, gr.height)
+         set_color(g, C.hint)
+         g:setFont('sansserif', 'r', mb.snap(max(7, self.font - 1)))
+         local lines = {}
+         for line in (r.wait or ''):gmatch('[^\n]+') do table.insert(lines, line) end
+         local lh = g:getStringHeight('Ag')
+         local ty = gr.y + floor((gr.height - #lines * lh) / 2)
+         for i, line in ipairs(lines) do
+            g:drawString(line, gr.x + max(4, floor((gr.width - g:getStringWidth(line)) / 2)), ty + (i - 1) * lh, 'top')
+         end
+      else
+         ok = pcall(plot.draw, g, gr, r.spec, { small = true, labels = r.labels, clip = self:frame() })
+      end
       g:clipRect('reset')
       local f = self:frame()
       g:clipRect('set', f.x, f.y, f.width + 1, f.height + 1)
@@ -901,11 +940,11 @@ end
 -- Events ------------------------------------------------------------------------------
 
 function ui.sheet:on_up()
-   self:move(-1)
+   if not self:move(-1) and self.on_edge then self:on_edge(-1) end
 end
 
 function ui.sheet:on_down()
-   self:move(1)
+   if not self:move(1) and self.on_edge then self:on_edge(1) end
 end
 
 function ui.sheet:on_tab()

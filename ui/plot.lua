@@ -65,59 +65,85 @@ local function fmt_tick(v, step)
 end
 P.fmt_tick = fmt_tick
 
--- Sample curve values to choose a y window
+-- Choose the y window from the curves. A given limit (ymin or ymax alone)
+-- is kept and the other is chosen from the part of the curves on its side.
 function P.auto_range(spec)
-   if spec.ymin and spec.ymax and spec.ymax > spec.ymin then return end
-   local vals = {}
+   local lo0, hi0 = spec.ymin, spec.ymax
+   if lo0 and hi0 then
+      if hi0 > lo0 then return end
+      lo0, hi0 = nil, nil
+   end
+   local all = {}
    local xmin, xmax = spec.xmin, spec.xmax
    for _, c in ipairs(spec.curves or {}) do
       if c.fn and (c.kind == nil or c.kind == 'y') then
          for i = 0, 200 do
             local x = xmin + (xmax - xmin) * i / 200
             local y = c.fn(x)
-            if y and abs(y) < 1e12 then table.insert(vals, y) end
+            if y and abs(y) < 1e12 then table.insert(all, y) end
          end
       elseif c.kind == 'param' then
          for i = 0, 200 do
             local t = c.tmin + (c.tmax - c.tmin) * i / 200
             local y = c.fy(t)
-            if y and abs(y) < 1e12 then table.insert(vals, y) end
+            if y and abs(y) < 1e12 then table.insert(all, y) end
          end
       elseif c.pts then
-         for _, p in ipairs(c.pts) do table.insert(vals, p[2]) end
+         for _, p in ipairs(c.pts) do table.insert(all, p[2]) end
       elseif c.kind == 'x' then
          -- x = g(y): y range is the curve's own range
-         if c.ymin then table.insert(vals, c.ymin) end
-         if c.ymax then table.insert(vals, c.ymax) end
+         if c.ymin then table.insert(all, c.ymin) end
+         if c.ymax then table.insert(all, c.ymax) end
       end
    end
-   for _, p in ipairs(spec.points or {}) do
-      if p.y and abs(p.y) < 1e12 then table.insert(vals, p.y) end
-   end
    for _, a in ipairs(spec.asymptotes or {}) do
-      if a.kind == 'h' then table.insert(vals, a.y) end
+      if a.kind == 'h' then table.insert(all, a.y) end
+   end
+   local feats = {}
+   for _, p in ipairs(spec.points or {}) do
+      if p.y and abs(p.y) < 1e12 then
+         table.insert(all, p.y)
+         table.insert(feats, p.y)
+      end
+   end
+   -- values on the visible side of a given limit
+   local function inside(v) return (not lo0 or v >= lo0) and (not hi0 or v <= hi0) end
+   local vals = {}
+   for _, v in ipairs(all) do
+      if inside(v) then table.insert(vals, v) end
    end
    if #vals == 0 then
-      spec.ymin, spec.ymax = spec.ymin or -10, spec.ymax or 10
+      -- nothing on that side: keep the height the curves would need
+      table.sort(all)
+      local h = #all > 1 and min(1e6, max(1, (all[#all] - all[1]) * 1.3)) or 20
+      if lo0 then
+         spec.ymax = lo0 + h
+      elseif hi0 then
+         spec.ymin = hi0 - h
+      else
+         spec.ymin, spec.ymax = -10, 10
+      end
       return
    end
    table.sort(vals)
-   local lo = vals[max(1, floor(#vals * 0.04) + 1)]
-   local hi = vals[min(#vals, floor(#vals * 0.96) + 1)]
+   local lo = lo0 or vals[max(1, floor(#vals * 0.04) + 1)]
+   local hi = hi0 or vals[min(#vals, floor(#vals * 0.96) + 1)]
    -- feature points must stay visible
-   for _, p in ipairs(spec.points or {}) do
-      if p.y and abs(p.y) < 1e12 then
-         lo, hi = min(lo, p.y), max(hi, p.y)
-      end
+   for _, y in ipairs(feats) do
+      if inside(y) then lo, hi = min(lo, y), max(hi, y) end
    end
-   if hi - lo < 1e-9 then lo, hi = lo - 1, hi + 1 end
+   if hi - lo < 1e-9 then
+      local d = max(1, abs(lo) * 0.1)
+      if not lo0 then lo = lo - d end
+      if not hi0 then hi = hi + d end
+   end
    local pad = (hi - lo) * 0.15
-   lo, hi = lo - pad, hi + pad
+   if not lo0 then lo = lo - pad end
+   if not hi0 then hi = hi + pad end
    -- include the x-axis when it is close
-   if lo > 0 and lo < (hi - lo) * 0.6 then lo = -(hi - lo) * 0.05 end
-   if hi < 0 and -hi < (hi - lo) * 0.6 then hi = (hi - lo) * 0.05 end
-   spec.ymin = spec.ymin or lo
-   spec.ymax = spec.ymax or hi
+   if not lo0 and lo > 0 and lo < (hi - lo) * 0.6 then lo = -(hi - lo) * 0.05 end
+   if not hi0 and hi < 0 and -hi < (hi - lo) * 0.6 then hi = (hi - lo) * 0.05 end
+   spec.ymin, spec.ymax = lo, hi
 end
 
 -- Coordinate mapping
@@ -619,7 +645,8 @@ function P.draw(g, r, spec, opts)
       local c = opts.clip
       local x2, y2 = min(cx + cw, c.x + c.width), min(cy + ch, c.y + c.height)
       cx, cy = max(cx, c.x), max(cy, c.y)
-      cw, ch = max(0, x2 - cx), max(0, y2 - cy)
+      cw, ch = x2 - cx, y2 - cy
+      if cw <= 0 or ch <= 0 then return end -- not on screen
    end
    g:clipRect('set', cx, cy, cw, ch)
 

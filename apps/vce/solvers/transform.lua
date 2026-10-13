@@ -21,6 +21,7 @@ local S = {
    group = 'Functions',
    course = 'MM',
    desc = 'y=f(x) to y=Af(n(x+b))+c: order, mapping (x,y) to (..), or find it from two rules',
+   defer = true, -- worked out when the selection leaves the boxes
    fields = {
       { id = 'f', label = 'f(x) =', hint = 'x^2   sin(x)   e^x   sqrt(x)', implicit = true },
       { id = 'g', label = 'image y =', hint = '2f(3x-6)+4   or   3(x-1)^2+2' },

@@ -38,6 +38,7 @@ local S = {
    short = 'DE models',
    group = 'Calculus',
    desc = 'Growth/decay, cooling, logistic, mixing, Euler & slope field, related rates',
+   defer = true, -- worked out when the selection leaves the boxes
    fields = {
       { id = 'type', label = 'Model', kind = 'choice', options = TYPES },
       -- growth / cooling / logistic / mixing

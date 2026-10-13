@@ -23,6 +23,7 @@ local S = {
    short = 'Area/volume',
    group = 'Calculus',
    desc = 'y=f(x), x=g(y) or parametric: area, solid of revolution, arc length, surface area',
+   defer = true, -- worked out when the selection leaves the boxes
    fields = {
       { id = 'type', label = 'Curve', kind = 'choice', options = TYPES },
       { id = 'f', label = function(I)

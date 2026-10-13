@@ -51,6 +51,8 @@ Z.UI = {
    ['check the solvers with this calculator\'s CAS'] = '用本机 CAS 检查各解题器',
    ['Results'] = '结果',
    ['Graph'] = '图像',
+   ['Graph options'] = '图像选项',
+   ['Leave the box to redraw the graph'] = '离开输入框后重新画图',
    ['domain'] = '定义域',
    ['Working for'] = '求解步骤',
    ['esc: back'] = '返回',
@@ -553,6 +555,10 @@ Z.NOTES = {
    { '^Could not find (.+) from the conditions$', '无法由条件求出 %1' },
    { '^Only x may appear in f%(x%).*$', 'f(x) 中只能含 x：参数请先赋值' },
    { '^x from must be less than x to$', 'x 的下限必须小于上限' },
+   { '^y from must be less than y to$', 'y 的下限必须小于上限' },
+   { '^y from must be a number$', 'y 的下限必须是一个数' },
+   { '^y to must be a number$', 'y 的上限必须是一个数' },
+   { '^The answers and graph update when you leave the boxes$', '离开输入框后才更新答案和图像（在最后一格按 enter 或按 ▼）' },
    { '^Enter x%(t%), y%(t%) and the t interval$', '请输入 x(t)、y(t) 和 t 的区间' },
    { '^Enter the curve and the interval$', '请输入曲线和区间' },
    { '^The lower limit must be less than the upper limit$', '下限必须小于上限' },
@@ -699,8 +705,8 @@ Z.HELP = {
       = '1. 在主页选一个主题（按它的数字键）。',
    ['2. Type what the question gives into the boxes. Leave unknowns empty.']
       = '2. 把题目给的数据填进输入框，未知的留空。',
-   ['3. Answers (green) appear at once. The working is under them.']
-      = '3. 答案（绿色区域）立刻出现，下面是解题步骤。',
+   ['3. Answers (green) appear at once; topics with a graph work it out when you leave the boxes. The working is under them.']
+      = '3. 答案（绿色区域）立刻出现；有图像的题目在离开输入框后才计算。下面是解题步骤。',
    ['Not sure what to type? Choose "Try an example" in an empty problem.']
       = '不知道填什么？在空白题目里选“试一个例子”。',
    ['MM = Maths Methods, SM = Specialist Maths. Both are for the tech-active Exam 2.']
@@ -743,8 +749,8 @@ Z.HELP = {
       = '运动学公式：和其他答案一样，按 enter 在精确值和小数之间切换；选中推导出的公式（如 x(v)）按 W，只显示这个公式的步骤；公式下方显示定义域。未知常数（k）由“另一条件”求出，如 a=-3.5 when v=7 或 a(7)=-3.5；多个条件用 ; 分隔。',
    ['Vector angle: type two vectors (2i-j+3k or (2,-1,3)), or choose three points for angle ABC (the vertex is B). Choose 0 to 180° for the angle between vectors, or acute for the angle between lines (180° − θ when θ is obtuse). With a letter such as m in a vector, type the angle in "given θ" to find m.']
       = '向量夹角：输入两个向量（2i-j+3k 或 (2,-1,3)），或选三个点求 ∠ABC（顶点是 B）。“0 到 180°”是向量的夹角；“锐角”是直线的夹角（θ 为钝角时取 180° − θ）。向量中有字母（如 m）时，在“已知”里填夹角即可求出 m。',
-   ['Function graph: enter f(x) and the x window (the y window is optional). It finds asymptotes, turning points, points of inflection, intercepts, holes, jumps, endpoints and points where f is not differentiable; the choices show or hide each feature (asymptotes are dashed).']
-      = '函数图像：输入 f(x) 和 x 范围（y 范围可选），求出渐近线、驻点、拐点、截距、空心点、跳跃点、端点和不可导点；可选择在图上显示或隐藏各项（渐近线为虚线）。',
+   ['Function graph: enter f(x) and the x window. The y window is optional: give one limit and the other is chosen from the curve. Leave the boxes (enter on the last one, or down) and it draws the graph and finds asymptotes, turning points, points of inflection, intercepts, holes, jumps, endpoints and points where f is not differentiable; the choices under the answers show or hide each feature (asymptotes are dashed).']
+      = '函数图像：输入 f(x) 和 x 范围。y 范围可选：只填一个，另一个按曲线自动选。离开输入框（在最后一格按 enter 或按 ▼）后画图，并求出渐近线、驻点、拐点、截距、空心点、跳跃点、端点和不可导点；答案下面的选项可以在图上显示或隐藏各项（渐近线为虚线）。',
    ['Graphs: select a graph and press enter (or click it) for full screen. left/right trace · up/down jump between marked points · tab next curve · + / − zoom · 8 4 6 2 pan · 5 reset · l labels · a asymptotes · esc back.']
       = '图像：选中图像后按 enter（或点击）全屏显示。左/右 追踪 · 上/下 跳到关键点 · tab 下一条曲线 · + / − 缩放 · 8 4 6 2 平移 · 5 复位 · l 标签 · a 渐近线 · esc 返回。',
    ['Area/volume: y = f(x), x = g(y) or parametric x(t), y(t); a second curve gives the area or volume between the curves. Limits can be y values (choose "Limits are: y values" or type y=1 and y=4) and may contain a letter such as a; type a known volume (V=16pi) or area in "given" to find it. DE models: choose growth/decay, cooling, logistic, mixing, a general dy/dx (with Euler steps) or related rates.']

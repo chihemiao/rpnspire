@@ -71,6 +71,7 @@ local S = {
    group = 'Functions',
    course = 'MM SM',
    desc = "f(x) with a, b, c and conditions like f(1)=3, f'(2)=0, (2,5)",
+   defer = true, -- worked out when the selection leaves the boxes
    fields = { { id = 'f', label = 'f(x) =', hint = 'a*x^3+b*x^2+c   a/(x-b)+c', implicit = true } },
    example = { f = 'a*x^3+b*x^2+c', c1 = 'f(1)=3', c2 = "f'(2)=0", c3 = '(0,1)' },
 }

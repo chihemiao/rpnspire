@@ -14,7 +14,7 @@ The toolkit ships three ways:
 
 1. **Pick a topic** on the home screen. Press its number (1–9, or 0 for the tenth) or move to it and press enter.
 2. **Type what the question gives** into the boxes. Leave the unknowns empty.
-3. **Read the answers.** They appear at once in the green **Answers** area. The working is underneath.
+3. **Read the answers.** They appear at once in the green **Answers** area. The working is underneath. Topics with a graph (function graph, area/volume, transformations, DE models, unknown constants) wait until you leave the boxes: press enter on the last box or move down past it; until then a note says so.
 
 Not sure what to type? An empty problem has a **Try an example** button that fills in a sample question so you can see how the boxes are used.
 
@@ -70,7 +70,7 @@ Kinds of question under Probability & statistics:
 
 | Solver | What you can enter | What you get |
 |--------|--------------------|--------------|
-| Function graph | f(x), x window, optional y window; show/hide choices for asymptotes, turning points, inflection points, intercepts, discontinuities and labels | <ul><li>vertical, horizontal and oblique (or curved) asymptotes</li><li>stationary points classified as max, min or stationary inflection</li><li>points of inflection and intercepts</li><li>holes, jumps and endpoints</li><li>points where f is not differentiable (corners, cusps, vertical tangents)</li><li>f′ and f″</li><li>an annotated graph</li></ul> |
+| Function graph | f(x), x window, optional y window (give one limit and the other is chosen from the curve on that side); show/hide choices for asymptotes, turning points, inflection points, intercepts, discontinuities and labels, listed under the answers | <ul><li>vertical, horizontal and oblique (or curved) asymptotes</li><li>stationary points classified as max, min or stationary inflection</li><li>points of inflection and intercepts</li><li>holes, jumps and endpoints</li><li>points where f is not differentiable (corners, cusps, vertical tangents)</li><li>f′ and f″</li><li>an annotated graph</li></ul> |
 | Find unknown constants | f(x) with letters (`a*x^3+b*x^2+c`, `a/(x-b)+c`, `k*e^(-x)`); one condition per box: `f(1)=3`, `f'(2)=0`, `f''(0)=0`, `(2,5)` (passes through), `tp(1,2)` or `max (1,2)` (turning point), `poi (0,1)` (inflection), `tangent y=2x+1 at x=1`, `asymptote x=2` / `asymptote y=3`, or any equation such as `integral(f(x),x,0,1)=2` | <ul><li>the equation from each condition</li><li>the simultaneous solution (every solution when there are several)</li><li>f(x) with the values substituted</li><li>a check of every condition</li><li>a graph with the given points, the tangent and the asymptotes</li></ul> It asks for more conditions when there are fewer than unknowns. |
 | Transformations | f(x) and the image, either written with f (`-2f(3x-6)+4`) or as a rule (`3(x-1)^2+2`, `2sqrt(3-x)+1`); optional point `(1,1)` | <ul><li>A, n, b and c in y = A f(n(x + b)) + c (with f(3x−6) rewritten as f(3(x−2)))</li><li>the transformations in VCE order (dilations, reflections, then translations) in exam wording</li><li>the mapping (x, y) → (x/n − b, Ay + c) and its inverse</li><li>the image of the point</li><li>the rule of the image</li><li>both graphs with the point and its image</li></ul> |
 | Simultaneous equations | two equations in x, y (or three in x, y, z) with one parameter, e.g. `kx+2y=k`, `2x+(k-3)y=k-2` | <ul><li>the matrix form and its determinant (factorised)</li><li>the values where det = 0</li><li>the unique solution in terms of k</li><li>for each det = 0 value, the reduced equations and whether there is no solution (parallel lines, inconsistent planes) or infinitely many, with the general solution in terms of λ (and μ)</li></ul> Without a parameter it simply solves the system. |
@@ -104,7 +104,8 @@ If the question gives no x₀ or v₀ but, for example, the acceleration at a ce
 
 ### Graphs
 
-The function graph, area/volume and DE model solvers draw a graph under the results:
+The function graph, area/volume and DE model solvers draw a graph right under the boxes, above the answers. It is worked out and drawn when you leave the boxes (enter on the last box, or down past it), not each time you move from one box to the next, so typing stays quick. While you change a box the graph shows *Leave the box to redraw the graph* instead of being redrawn on every key. The function graph's y window only changes the picture, so it is applied without working the analysis out again; a reversed or unreadable y limit is reported in a note.
+
 - asymptotes are dashed red lines; one that lies on an axis (x = 0 or y = 0) is drawn on both sides of the axis, so the axis does not hide it;
 - marked points have labels;
 - regions are hatched;
