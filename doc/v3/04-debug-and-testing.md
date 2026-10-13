@@ -15,6 +15,24 @@
 
 目标：**真机上的每个问题都能被看到、被记录、被带回桌面复现，并变成一个回归测试。**
 
+### 1.1 测试和工具的现状（2.4）
+
+| 项目 | 现状 |
+|---|---|
+| 运行时间 | `test_vce.lua` 78 个测试：Lua 5.4 约 4 分钟，Lua 5.1 约 7 分钟；CI 两个版本各跑一遍。最慢的 5 个（`ui_smoke` 61 秒、`i18n_coverage`、`kin_a_of_x`、`selftest_cases`、`ui_bilingual` 各约 30 秒）占约 75%，原因是 mock 用采样做数值求解 |
+| 只跑一部分 | `testlib.lua` 不能按名字过滤，也不能并行 |
+| mock 的能力 | 只做数值：有自由变量的表达式原样返回；`expand`、`factor`、`polyQuotient`、`deSolve` 不支持；结果是小数，不是 TI 的写法 |
+| TI 运行时的桩 | `class`、`platform`、`gc`、`toolpalette`、`string.usub` 等写了 5 份（`test.lua`、`test_vce.lua`、`tools/bundle_smoke.lua`、`tools/screens.lua`、`site/public/emu/host.lua`），`usub` 只有网站那份支持 UTF-8 |
+| 按键名称 | 测试用 `ui.on_event` 的名字，冒烟测试用 `on.*`，网站 host、模拟器和教程脚本又各有一套 |
+| 网站的精确答案 | `site/emu/recorded.lua` 约 25 条，是手写的，不是真机录的；解题器发给 CAS 的字符串一变，演示就悄悄退回 mock 的小数 |
+| Lua 版本 | 网站模拟器（wasmoon）是 Lua 5.4，真机是 5.1 |
+| 网站 bundle | 把 mock CAS（`testcas.lua`）也打包进了网站代码 |
+| 静态检查 | `make check` 跑 luacheck，`bundle.lua` 有 672 条警告，不在 CI 里 |
+| CI 顺序 | 网站部署的 workflow 不跑 Lua 测试，也不依赖测试 workflow：**Lua 测试失败时网站照样会部署** |
+| 调试 | 只有测试里的 `VERBOSE=1`；`cas.log` 钩子没有任何地方用；真机上的错误处理用 `print`，看不到 |
+| 自检 | 只比较数值，不能导出结果 |
+| 截图 | `tools/screens.lua` + `tools/render.sh` 能在桌面生成 39 张截图，但要手动跑 |
+
 ## 2. 运行时可观测性
 
 ### 2.1 日志（`base/log.lua`）
@@ -129,6 +147,11 @@ dev 构建里自动检查不变量，失败时记 error 并在页面顶部显示
 
 规则：
 
+- **快**：mock 的采样结果按表达式缓存；慢测试拆小；`tests/run.lua` 支持按文件和名字过滤，CI 按目录并行。目标是单元 + 主题金样在 1 分钟内跑完，完整套件在 CI 里 5 分钟内。
+- **一份 TI 运行时桩**：`plat/test.lua` 同时给单元测试、界面测试、冒烟测试和截图工具使用；网站的 `plat/web.lua` 实现同一个接口。按键名称只有一套（意图名），教程脚本、测试和模拟器都用它。
+- **Lua 5.1 优先**：桌面测试默认用 5.1 跑（和真机一致），5.4 作为额外检查；网站模拟器只能是 5.4，所以代码里禁止用 5.4 专有的东西（`utf8` 库、整数除法 `//`、`goto` 等），由 luacheck 配置检查。
+- **网站不打包 mock**：网站只用录制回放后端；录制里没有的表达式显示“演示里没有这个答案”，而不是悄悄给小数。
+- **CI 顺序**：网站部署依赖全部测试通过。
 - 每修一个 bug，先写一个能复现它的测试（金样、界面或契约其中一层）。
 - 测试按文件拆分，一个主题一个文件，可以单独运行（`lua tests/run.lua topics/graph`）。现在只能整套跑或者靠临时脚本过滤。
 - 自检用例（`cases`）和桌面测试共用一份数据：每个主题的 `cases.lua` 同时用于真机自检和桌面金样。

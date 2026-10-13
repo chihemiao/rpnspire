@@ -98,13 +98,14 @@
 | 部分 | 内容 |
 |---|---|
 | 构建 | `npm run build`（rpn.tns）、`build:vce`、`build:vce-zh`、`build:site`；luabundler 打包，Luna 转 `.tns` |
-| 测试 | `npm test`：rpnspire 核心测试 5 个 + 工具箱测试 78 个（解题器、界面按键驱动、中文覆盖、自检用例）；`make test LUA=lua5.1`；`tools/bundle_smoke.lua`（Lua 5.1 沙盒、英文产物无中文）；`npm run test:site`（教程回放、反馈 API、USB 协议） |
+| 测试 | `npm test`：rpnspire 核心测试 5 个 + 工具箱测试 78 个（解题器、界面按键驱动、中文覆盖、自检用例；Lua 5.4 约 4 分钟，5.1 约 7 分钟）；`make test LUA=lua5.1`；`tools/bundle_smoke.lua`（Lua 5.1 沙盒、英文产物无中文、按键走一遍主要主题）；`npm run test:site`（教程回放、反馈 API、USB 协议对一个独立的模拟计算器）；`tools/screens.lua`（桌面截图，手动） |
+| CI | `test.yml`：每次 push 用 Lua 5.4 和 5.1 各跑一遍测试、构建全部 `.tns`、冒烟测试；`site.yml`：构建网站、跑网站测试、部署到 Cloudflare |
 | 网站模拟器 | wasmoon 在浏览器里运行真实的工具箱脚本，CAS 用 mock 加 `site/emu/recorded.lua` 里的精确答案；画布实现 TI 的 gc |
 | 教程 | `site/public/assets/tutorials.js`：四个主题（作图、面积体积、运动学、SUVAT），每个有手算步骤和工具箱按键脚本，测试会回放并检查答案 |
 | 发送到计算器 | WebUSB 实现 NNSE + NavNet 文件传输，一键把文档发到 CX II |
 | 版本 | `apps/vce/version.lua` 唯一来源；`site/changelog.json` 第一项必须一致；CI 构建并部署 |
 
-（网站、CI 和测试的细节见 [调试与测试设计](04-debug-and-testing.md) 的现状部分。）
+（网站、CI 和测试的细节和问题见 [调试与测试设计 §1.1](04-debug-and-testing.md#11-测试和工具的现状24)。）
 
 ## 6. 代码现状（3.0 要解决的）
 

@@ -66,7 +66,7 @@
 
 ```
 v3/
-  plat/        host.lua (接口), ti.lua, web.lua, test.lua
+  plat/        host.lua (接口), ti.lua, web.lua, test.lua   ← test.lua 取代现在散在 5 处的 TI 运行时桩
   base/        class.lua, util.lua, log.lua, prof.lua, i18n.lua, result.lua, bus.lua, ser.lua
   cas/         engine.lua, expr.lua, input.lua, ops.lua, num.lua, settings.lua
   mathx/       fn.lua, interval.lua, analysis/{asymptote,stationary,inflection,intercept,discont,domain}.lua,
